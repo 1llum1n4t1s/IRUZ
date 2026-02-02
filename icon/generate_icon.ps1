@@ -1,7 +1,7 @@
 # .NETを使用してPNGファイルからICOファイルを生成するスクリプト
 Add-Type -AssemblyName System.Drawing
 
-$sizes = @(16, 32, 48, 256)
+$sizes = @(16, 24, 32, 48, 256)
 
 function Create-IconFromPng {
     <#
@@ -69,8 +69,9 @@ function Create-IconFromPng {
             }
         }
 
-        # ICOファイルの作成
-        $icoFileStream = [System.IO.File]::Create($OutputIcoPath)
+        # ICOファイルの作成（一時ファイルに書き、完了後に置換して使用中ファイルの部分更新を防ぐ）
+        $tempIcoPath = "$OutputIcoPath.tmp"
+        $icoFileStream = [System.IO.File]::Create($tempIcoPath)
         $binaryWriter = New-Object System.IO.BinaryWriter($icoFileStream)
 
         # ICOヘッダーの書き込み
@@ -105,6 +106,20 @@ function Create-IconFromPng {
             $binaryWriter.Write($pngDataCache[$size])
         }
 
+        $binaryWriter.Flush()
+        $icoFileStream.Flush()
+        if ($null -ne $binaryWriter) { $binaryWriter.Close() }
+        if ($null -ne $icoFileStream) { $icoFileStream.Close() }
+        $binaryWriter = $null
+        $icoFileStream = $null
+
+        if (Test-Path $OutputIcoPath) {
+            [System.IO.File]::Replace($tempIcoPath, $OutputIcoPath, "$OutputIcoPath.bak")
+            if (Test-Path "$OutputIcoPath.bak") { Remove-Item "$OutputIcoPath.bak" -Force }
+        } else {
+            Move-Item -Path $tempIcoPath -Destination $OutputIcoPath -Force
+        }
+
         Write-Host "✓ Successfully created: $OutputIcoPath with sizes: $($sizes -join ', ')" -ForegroundColor Green
         return $true
     }
@@ -113,14 +128,14 @@ function Create-IconFromPng {
         return $false
     }
     finally {
-        # すべてのリソースを確実に解放
-        if ($null -ne $binaryWriter) { $binaryWriter.Close() }
-        if ($null -ne $icoFileStream) { $icoFileStream.Close() }
+        # すべてのリソースを確実に解放（try内で既にClose済みの場合はスキップ）
+        if ($null -ne $binaryWriter) { try { $binaryWriter.Close() } catch { } }
+        if ($null -ne $icoFileStream) { try { $icoFileStream.Close() } catch { } }
         foreach ($bmp in $resizedBitmaps) {
-            if ($null -ne $bmp) { $bmp.Dispose() }
+            if ($null -ne $bmp) { try { $bmp.Dispose() } catch { } }
         }
-        if ($null -ne $baseBitmap) { $baseBitmap.Dispose() }
-        if ($null -ne $sourceImage) { $sourceImage.Dispose() }
+        if ($null -ne $baseBitmap) { try { $baseBitmap.Dispose() } catch { } }
+        if ($null -ne $sourceImage) { try { $sourceImage.Dispose() } catch { } }
     }
 }
 

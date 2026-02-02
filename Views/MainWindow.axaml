@@ -28,6 +28,7 @@
         <Button Content="{Binding ToggleButtonText}"
                 Command="{Binding ToggleCommand}"
                 HorizontalAlignment="Center"
+                HorizontalContentAlignment="Center"
                 MinWidth="120"/>
     </StackPanel>
 </Window>
