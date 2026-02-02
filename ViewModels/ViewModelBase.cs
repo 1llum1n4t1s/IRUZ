@@ -1,6 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace IRU.ViewModels
+namespace IRUZ.ViewModels
 {
     public abstract class ViewModelBase : ObservableObject
     {

@@ -25,13 +25,13 @@ jobs:
         run: .\icon\generate_icon.ps1
 
       - name: 依存関係を復元
-        run: dotnet restore IRU.slnx
+        run: dotnet restore IRUZ.slnx
 
       - name: リリースバージョンを設定
         shell: pwsh
         run: |
           # csproj からバージョンを読み取る
-          $csprojPath = "IRU.csproj"
+          $csprojPath = "IRUZ.csproj"
           $version = $null
 
           # 正規表現でバージョンを抽出
@@ -55,7 +55,7 @@ jobs:
         run: |
           # csproj または Directory.Build.props からターゲットフレームワークを読み取る
           $targetFramework = $null
-          foreach ($path in @("IRU.csproj", "Directory.Build.props")) {
+          foreach ($path in @("IRUZ.csproj", "Directory.Build.props")) {
             if (-not (Test-Path $path)) { continue }
             $content = Get-Content -Path $path -Raw
             if ($content -match '<TargetFramework>([^<]+)</TargetFramework>') {
@@ -66,7 +66,7 @@ jobs:
           }
 
           if ([string]::IsNullOrWhiteSpace($targetFramework)) {
-            Write-Error "TargetFramework not found in IRU.csproj or Directory.Build.props"
+            Write-Error "TargetFramework not found in IRUZ.csproj or Directory.Build.props"
             exit 1
           }
 
@@ -84,7 +84,7 @@ jobs:
           Write-Host "Building and publishing application..."
           Write-Host "Target Framework: $env:TARGET_FRAMEWORK"
           Write-Host "Publish Dir: $publishDir"
-          dotnet publish "IRU.csproj" `
+          dotnet publish "IRUZ.csproj" `
             -c Release `
             -r win-x64 `
             --self-contained false
@@ -97,9 +97,9 @@ jobs:
           Write-Host "Publish directory contents:"
           Get-ChildItem -Path $publishDir -Recurse -ErrorAction SilentlyContinue | Select-Object -First 20 | ForEach-Object { Write-Host $_.FullName }
 
-          $exePath = Join-Path $publishDir "IRU.exe"
+          $exePath = Join-Path $publishDir "IRUZ.exe"
           if (-not (Test-Path $exePath)) {
-            Write-Error "IRU.exe not found at: $exePath"
+            Write-Error "IRUZ.exe not found at: $exePath"
             exit 1
           }
           Write-Host "Successfully built: $exePath"
@@ -131,20 +131,20 @@ jobs:
           New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
           Write-Host "Creating Velopack package..."
-          Write-Host "  Pack ID: IRU"
+          Write-Host "  Pack ID: IRUZ"
           Write-Host "  Version: $env:RELEASE_VERSION"
-          Write-Host "  Title: IRU"
-          Write-Host "  Main EXE: IRU.exe"
+          Write-Host "  Title: IRUZ"
+          Write-Host "  Main EXE: IRUZ.exe"
           Write-Host "  Publish Dir: $publishDir"
           Write-Host "  Output Dir: $outputDir"
           Write-Host "  Icon: $iconPath"
 
           vpk pack `
-            --packId IRU `
+            --packId IRUZ `
             --packVersion $env:RELEASE_VERSION `
-            --packTitle "IRU" `
-            --packAuthors "IRU" `
-            --mainExe IRU.exe `
+            --packTitle "IRUZ" `
+            --packAuthors "IRUZ" `
+            --mainExe IRUZ.exe `
             --icon $iconPath `
             --packDir $publishDir `
             --outputDir $outputDir `
@@ -221,7 +221,7 @@ jobs:
           }
 
           $repoUrl = "https://github.com/${{ github.repository }}"
-          $releaseName = "IRU $env:RELEASE_VERSION"
+          $releaseName = "IRUZ $env:RELEASE_VERSION"
 
           Write-Host ""
           Write-Host "Uploading to GitHub Releases:"

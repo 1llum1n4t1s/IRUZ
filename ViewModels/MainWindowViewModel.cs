@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using IRU.Services;
+using IRUZ.Services;
 
-namespace IRU.ViewModels;
+namespace IRUZ.ViewModels;
 
 /// <summary>
 /// メインウィンドウの ViewModel。マウスジグルの開始/停止と間隔を管理する。

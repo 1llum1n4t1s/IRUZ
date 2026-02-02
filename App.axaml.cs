@@ -8,10 +8,10 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform;
-using IRU.ViewModels;
-using IRU.Views;
+using IRUZ.ViewModels;
+using IRUZ.Views;
 
-namespace IRU
+namespace IRUZ
 {
     public partial class App : Application
     {
@@ -44,7 +44,7 @@ namespace IRU
         private void SetupTrayIcon(IClassicDesktopStyleApplicationLifetime desktop, MainWindow mainWindow)
         {
             WindowIcon trayIconImage;
-            using (var iconStream = AssetLoader.Open(new Uri("avares://IRU/icon/app.ico")))
+            using (var iconStream = AssetLoader.Open(new Uri("avares://IRUZ/icon/app.ico")))
             {
                 var memoryStream = new MemoryStream();
                 iconStream.CopyTo(memoryStream);

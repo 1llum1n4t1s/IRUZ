@@ -4,7 +4,7 @@ using Avalonia;
 using Velopack;
 using Velopack.Sources;
 
-namespace IRU
+namespace IRUZ
 {
     internal sealed class Program
     {

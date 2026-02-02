@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace IRU.Views
+namespace IRUZ.Views
 {
     public partial class MainWindow : Window
     {

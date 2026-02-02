@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace IRU.Services;
+namespace IRUZ.Services;
 
 /// <summary>
 /// Windows でマウス入力をシミュレートし、GetLastInputInfo を更新して退席中を防ぐヘルパー。

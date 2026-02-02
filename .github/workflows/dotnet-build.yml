@@ -22,13 +22,13 @@ jobs:
         run: .\icon\generate_icon.ps1
 
       - name: 依存関係を復元
-        run: dotnet restore IRU.slnx
+        run: dotnet restore IRUZ.slnx
 
       - name: ビルド
-        run: dotnet build IRU.slnx --configuration Release --no-restore
+        run: dotnet build IRUZ.slnx --configuration Release --no-restore
 
       - name: テスト実行
-        run: dotnet test IRU.slnx --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test IRUZ.slnx --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
         continue-on-error: true
 
       - name: テスト結果をアップロード
