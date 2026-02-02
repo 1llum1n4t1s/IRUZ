@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:IRU.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="180"
+        x:Class="IRU.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/icon/app.ico"
+        Title="IRUZ"
+        Width="320" Height="180"
+        WindowStartupLocation="CenterScreen">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <StackPanel Margin="24" Spacing="16" VerticalAlignment="Center">
+        <TextBlock Text="{Binding StatusText}" FontSize="14" HorizontalAlignment="Center"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Text="間隔:" VerticalAlignment="Center"/>
+            <ComboBox ItemsSource="{Binding IntervalOptions}"
+                      SelectedItem="{Binding SelectedIntervalSeconds}"
+                      MinWidth="80"
+                      IsEnabled="{Binding !IsRunning}"/>
+            <TextBlock Text="秒" VerticalAlignment="Center"/>
+        </StackPanel>
+        <Button Content="{Binding ToggleButtonText}"
+                Command="{Binding ToggleCommand}"
+                HorizontalAlignment="Center"
+                MinWidth="120"/>
+    </StackPanel>
+</Window>

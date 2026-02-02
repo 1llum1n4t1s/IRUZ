@@ -1,0 +1,50 @@
+name: .NET ビルド
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    name: .NET ビルド
+    runs-on: windows-latest
+    if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: .NET SDK をセットアップ
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: アイコン生成
+        shell: pwsh
+        run: .\icon\generate_icon.ps1
+
+      - name: 依存関係を復元
+        run: dotnet restore IRU.slnx
+
+      - name: ビルド
+        run: dotnet build IRU.slnx --configuration Release --no-restore
+
+      - name: テスト実行
+        run: dotnet test IRU.slnx --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        continue-on-error: true
+
+      - name: テスト結果をアップロード
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-Release
+          path: '**/TestResults/*.trx'
+          retention-days: 1
+
+      - name: ビルド成果物をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-release
+          path: |
+            bin/**/Release/**/*.exe
+            bin/**/Release/**/*.dll
+            !bin/**/Release/**/ref/**
+          retention-days: 1
