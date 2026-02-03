@@ -22,6 +22,7 @@ namespace IRUZ
             AvaloniaXamlLoader.Load(this);
         }
 
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Reflection used by Avalonia data validation plugins and ViewLocator")]
         public override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -30,8 +31,9 @@ namespace IRUZ
                 var mainWindow = new MainWindow
                 {
                     DataContext = new MainWindowViewModel(),
-                    WindowState = WindowState.Minimized,
                 };
+                // ウィンドウが表示される前に最小化することを指示
+                mainWindow.SetStartMinimized();
                 desktop.MainWindow = mainWindow;
                 SetupTrayIcon(desktop, mainWindow);
             }
@@ -72,13 +74,6 @@ namespace IRUZ
 
             var trayIcons = new TrayIcons { _trayIcon };
             TrayIcon.SetIcons(this, trayIcons);
-
-            // 起動時に最小化状態ならタスクバーから隠してトレイアイコンを表示する
-            if (mainWindow.WindowState == WindowState.Minimized)
-            {
-                mainWindow.ShowInTaskbar = false;
-                // mainWindow.Hide() は初期化直後だと効かない場合があるが、WindowState 監視側でも処理される
-            }
 
             mainWindow.GetObservable(Window.WindowStateProperty).Subscribe(new WindowStateObserver(state =>
             {
@@ -121,16 +116,24 @@ namespace IRUZ
             mainWindow.Activate();
         }
 
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Reflection used by Avalonia data validation plugins")]
         private void DisableAvaloniaDataAnnotationValidation()
         {
-            // Get an array of plugins to remove
-            var dataValidationPluginsToRemove =
-                BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
-
-            // remove each entry found
-            foreach (var plugin in dataValidationPluginsToRemove)
+            try
             {
-                BindingPlugins.DataValidators.Remove(plugin);
+                // Get an array of plugins to remove
+                var dataValidationPluginsToRemove =
+                    BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+
+                // remove each entry found
+                foreach (var plugin in dataValidationPluginsToRemove)
+                {
+                    BindingPlugins.DataValidators.Remove(plugin);
+                }
+            }
+            catch
+            {
+                // NativeAOT 環境で反射に関する例外が発生する場合がある
             }
         }
     }

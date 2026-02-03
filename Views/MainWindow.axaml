@@ -9,7 +9,9 @@
         Icon="/icon/app.ico"
         Title="IRUZ"
         Width="320" Height="180"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        WindowState="Normal">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
