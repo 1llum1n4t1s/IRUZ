@@ -2,6 +2,9 @@
 
 Windows 用のマウスジグルツールです。定期的にマウス入力をシミュレートし、OS の「最後の入力」を更新することで、Teams などの退席（離席）判定をリセットします。
 
+ダウンロードはこちらのリリースページから
+https://github.com/1llum1n4t1s/IRUZ/releases/
+
 <img width="644" height="420" alt="image" src="https://github.com/user-attachments/assets/46aae56c-d513-47e6-86cd-10950b9b0d72" />
 
 
