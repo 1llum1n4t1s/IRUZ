@@ -86,8 +86,7 @@ jobs:
           Write-Host "Publish Dir: $publishDir"
           dotnet publish "IRUZ.csproj" `
             -c Release `
-            -r win-x64 `
-            --self-contained false
+            -r win-x64
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "dotnet publish failed with exit code $LASTEXITCODE"
