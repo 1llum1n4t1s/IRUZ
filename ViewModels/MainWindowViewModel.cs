@@ -5,17 +5,26 @@ using IRUZ.Services;
 
 namespace IRUZ.ViewModels;
 
-/// <summary>
-/// メインウィンドウの ViewModel。マウスジグルの開始/停止と間隔を管理する。
-/// </summary>
-public partial class MainWindowViewModel : ViewModelBase
-{
-    private System.Timers.Timer? _timer;
+    /// <summary>
+    /// メインウィンドウの ViewModel。マウスジグルの開始/停止と間隔を管理する。
+    /// </summary>
+    public partial class MainWindowViewModel : ViewModelBase
+    {
+        /// <summary>
+        /// MainWindowViewModel のコンストラクタ。
+        /// </summary>
+        public MainWindowViewModel()
+        {
+            // 起動時にデフォルト値でスタートさせる
+            StartJiggle();
+        }
+
+        private System.Timers.Timer? _timer;
 
     /// <summary>
     /// ジグル間隔の選択肢（秒）。
     /// </summary>
-    public ObservableCollection<int> IntervalOptions { get; } = [5, 30, 60, 120];
+    public ObservableCollection<int> IntervalOptions { get; } = [30, 60, 120, 300];
 
     [ObservableProperty]
     private int _selectedIntervalSeconds = 60;

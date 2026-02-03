@@ -30,6 +30,7 @@ namespace IRUZ
                 var mainWindow = new MainWindow
                 {
                     DataContext = new MainWindowViewModel(),
+                    WindowState = WindowState.Minimized,
                 };
                 desktop.MainWindow = mainWindow;
                 SetupTrayIcon(desktop, mainWindow);
@@ -56,7 +57,7 @@ namespace IRUZ
             {
                 Icon = trayIconImage,
                 ToolTipText = "IRUZ",
-                IsVisible = false,
+                IsVisible = true,
             };
 
             var showItem = new NativeMenuItem("表示");
@@ -71,6 +72,13 @@ namespace IRUZ
 
             var trayIcons = new TrayIcons { _trayIcon };
             TrayIcon.SetIcons(this, trayIcons);
+
+            // 起動時に最小化状態ならタスクバーから隠してトレイアイコンを表示する
+            if (mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.ShowInTaskbar = false;
+                // mainWindow.Hide() は初期化直後だと効かない場合があるが、WindowState 監視側でも処理される
+            }
 
             mainWindow.GetObservable(Window.WindowStateProperty).Subscribe(new WindowStateObserver(state =>
             {
