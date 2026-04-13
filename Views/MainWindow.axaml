@@ -3,34 +3,102 @@
         xmlns:vm="using:IRUZ.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="180"
+        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="200"
         x:Class="IRUZ.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/icon/app.ico"
-        Title="IRUZ"
-        Width="320" Height="180"
+        Title="{Binding AppVersion}"
+        Width="320" Height="200"
         WindowStartupLocation="CenterScreen"
         CanResize="False"
-        WindowState="Normal">
+        ExtendClientAreaToDecorationsHint="True"
+        WindowDecorations="None"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <StackPanel Margin="24" Spacing="16" VerticalAlignment="Center">
-        <TextBlock Text="{Binding StatusText}" FontSize="14" HorizontalAlignment="Center"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
-            <TextBlock Text="間隔:" VerticalAlignment="Center"/>
-            <ComboBox ItemsSource="{Binding IntervalOptions}"
-                      SelectedItem="{Binding SelectedIntervalSeconds}"
-                      MinWidth="80"
-                      IsEnabled="{Binding !IsRunning}"/>
-            <TextBlock Text="秒" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Button Content="{Binding ToggleButtonText}"
-                Command="{Binding ToggleCommand}"
-                HorizontalAlignment="Center"
-                HorizontalContentAlignment="Center"
-                MinWidth="120"/>
-    </StackPanel>
+    <Window.Styles>
+        <!-- タイトルバーボタン共通：フラットでボーダーなし -->
+        <Style Selector="Button#PART_Minimize, Button#PART_Close">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SystemBaseHighColor}"/>
+        </Style>
+        <Style Selector="Button#PART_Minimize:pointerover /template/ ContentPresenter,
+                         Button#PART_Close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+        <Style Selector="Button#PART_Minimize:pressed /template/ ContentPresenter,
+                         Button#PART_Close:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+        </Style>
+        <!-- 閉じるボタンは赤ホバー -->
+        <Style Selector="Button#PART_Close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#C42B1C"/>
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <!-- アクリル背景：デスクトップをぼかしてダーク色をオーバーレイ -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="#111118"
+                    TintOpacity="0.65"
+                    MaterialOpacity="0.85"/>
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <!-- コンテンツ -->
+        <Grid RowDefinitions="36,*">
+            <!-- カスタムタイトルバー -->
+            <Border x:Name="PART_TitleBar" Grid.Row="0" Background="Transparent">
+                <DockPanel Margin="12,0,0,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button x:Name="PART_Minimize"
+                                Content="─"
+                                Width="46" Height="36"
+                                Padding="0"
+                                FontSize="10"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"/>
+                        <Button x:Name="PART_Close"
+                                Content="✕"
+                                Width="46" Height="36"
+                                Padding="0"
+                                FontSize="12"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding AppVersion}"
+                               FontSize="11"
+                               Opacity="0.5"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- メインコンテンツ -->
+            <StackPanel Grid.Row="1" Margin="24,0,24,24" Spacing="16" VerticalAlignment="Center">
+                <TextBlock Text="{Binding StatusText}" FontSize="14" HorizontalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                    <TextBlock Text="間隔:" VerticalAlignment="Center"/>
+                    <ComboBox ItemsSource="{Binding IntervalOptions}"
+                              SelectedItem="{Binding SelectedIntervalSeconds}"
+                              MinWidth="80"
+                              IsEnabled="{Binding !IsRunning}"/>
+                    <TextBlock Text="秒" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Content="{Binding ToggleButtonText}"
+                        Command="{Binding ToggleCommand}"
+                        HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        MinWidth="120"/>
+            </StackPanel>
+        </Grid>
+    </Panel>
 </Window>

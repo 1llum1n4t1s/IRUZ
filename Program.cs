@@ -1,59 +1,89 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Velopack;
 using Velopack.Sources;
 
-namespace IRUZ
+namespace IRUZ;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private const string GitHubRepoUrl = "https://github.com/1llum1n4t1s/IRUZ";
+    private const string MutexName = "Local\\IRUZ_SingleInstance_B7A3F1E0";
+    private const string ShowWindowEventName = "Local\\IRUZ_ShowWindow_B7A3F1E0";
+    internal static volatile Action? RestoreFromTray;
+
+    /// <summary>
+    /// トレイ登録前に復帰要求が届いた場合の保留フラグ。
+    /// </summary>
+    internal static volatile bool PendingRestore;
+
+    [STAThread]
+    public static async Task Main(string[] args)
     {
-        /// <summary>
-        /// GitHub Releases の更新元リポジトリ URL。Velopack がここから releases.win.json を取得する。
-        /// </summary>
-        private const string GitHubRepoUrl = "https://github.com/1llum1n4t1s/IRUZ";
+        // Velopack のブートストラップを最初に実行する。
+        // インストール・アップデート引数の処理が必要なため、多重起動チェックより前に呼ぶ。
+        VelopackApp.Build().Run();
 
-        /// <summary>
-        /// アプリケーションのエントリポイント。Velopack のブートストラップを最初に実行し、
-        /// GitHub Releases に最新版があれば強制更新してから Avalonia アプリを起動する。
-        /// </summary>
-        [STAThread]
-        public static async Task Main(string[] args)
+        using var mutex = new Mutex(true, MutexName, out var createdNew);
+        if (!createdNew)
         {
-            VelopackApp.Build().Run();
-            await TryForceUpdateAsync(args);
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-        }
-
-        /// <summary>
-        /// GitHub Releases に最新版があればダウンロード・適用・再起動する。更新がなければ何もしない。
-        /// </summary>
-        /// <param name="args">再起動時に渡すコマンドライン引数。</param>
-        private static async Task TryForceUpdateAsync(string[] args)
-        {
+            // 既に起動中のインスタンスにウィンドウ表示を通知して終了
             try
             {
-                var source = new GithubSource(GitHubRepoUrl, string.Empty, false);
-                var options = new UpdateOptions { ExplicitChannel = "win" };
-                var mgr = new UpdateManager(source, options);
-                var newVersion = await mgr.CheckForUpdatesAsync();
-                if (newVersion != null)
-                {
-                    await mgr.DownloadUpdatesAsync(newVersion);
-                    mgr.ApplyUpdatesAndRestart(newVersion, args);
-                }
+                using var showEvent = EventWaitHandle.OpenExisting(ShowWindowEventName);
+                showEvent.Set();
             }
-            catch
-            {
-                // ネットワークエラーなどで更新チェックに失敗した場合はアプリを起動する
-            }
+            catch { }
+            return;
         }
 
-        // Avalonia configuration, don't remove; also used by visual designer.
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
-                .WithInterFont()
-                .LogToTrace();
+        using var showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+        using var cts = new CancellationTokenSource();
+        _ = Task.Run(() => ListenForShowWindow(showWindowEvent, cts.Token));
+
+        await TryForceUpdateAsync(args);
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+        cts.Cancel();
     }
+
+    private static void ListenForShowWindow(EventWaitHandle showEvent, CancellationToken ct)
+    {
+        WaitHandle[] handles = [showEvent, ct.WaitHandle];
+        while (!ct.IsCancellationRequested)
+        {
+            if (WaitHandle.WaitAny(handles) == 0)
+            {
+                if (RestoreFromTray is { } restore)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => restore());
+                else
+                    PendingRestore = true; // トレイ未登録 → 登録完了後に処理
+            }
+        }
+    }
+
+    private static async Task TryForceUpdateAsync(string[] args)
+    {
+        try
+        {
+            var source = new GithubSource(GitHubRepoUrl, string.Empty, false);
+            var options = new UpdateOptions { ExplicitChannel = "win" };
+            var mgr = new UpdateManager(source, options);
+            var newVersion = await mgr.CheckForUpdatesAsync();
+            if (newVersion != null)
+            {
+                await mgr.DownloadUpdatesAsync(newVersion);
+                mgr.ApplyUpdatesAndRestart(newVersion, args);
+            }
+        }
+        catch { }
+    }
+
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
 }

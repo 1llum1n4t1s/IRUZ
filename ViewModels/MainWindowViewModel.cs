@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -5,21 +6,21 @@ using IRUZ.Services;
 
 namespace IRUZ.ViewModels;
 
+/// <summary>
+/// メインウィンドウの ViewModel。マウスジグルの開始/停止と間隔を管理する。
+/// </summary>
+public partial class MainWindowViewModel : ViewModelBase, IDisposable
+{
     /// <summary>
-    /// メインウィンドウの ViewModel。マウスジグルの開始/停止と間隔を管理する。
+    /// MainWindowViewModel のコンストラクタ。
     /// </summary>
-    public partial class MainWindowViewModel : ViewModelBase
+    public MainWindowViewModel()
     {
-        /// <summary>
-        /// MainWindowViewModel のコンストラクタ。
-        /// </summary>
-        public MainWindowViewModel()
-        {
-            // 起動時にデフォルト値でスタートさせる
-            StartJiggle();
-        }
+        // 起動時にデフォルト値でスタートさせる
+        StartJiggle();
+    }
 
-        private System.Timers.Timer? _timer;
+    private System.Timers.Timer? _timer;
 
     /// <summary>
     /// ジグル間隔の選択肢（秒）。
@@ -42,6 +43,14 @@ namespace IRUZ.ViewModels;
     public string ToggleButtonText => IsRunning ? "停止" : "開始";
 
     /// <summary>
+    /// タイトルバーに表示するアプリ名とバージョン。
+    /// </summary>
+    public string AppVersion =>
+        typeof(MainWindowViewModel).Assembly.GetName().Version is { } v
+            ? $"IRUZ v{v.Major}.{v.Minor}.{v.Build}"
+            : "IRUZ";
+
+    /// <summary>
     /// ジグルを開始または停止する。
     /// </summary>
     [RelayCommand]
@@ -56,6 +65,7 @@ namespace IRUZ.ViewModels;
     private void StartJiggle()
     {
         _timer?.Stop();
+        _timer?.Dispose();
         _timer = new System.Timers.Timer(SelectedIntervalSeconds * 1000.0);
         _timer.Elapsed += (_, _) => MouseJiggleHelper.Jiggle();
         _timer.Start();
@@ -70,5 +80,13 @@ namespace IRUZ.ViewModels;
         _timer = null;
         IsRunning = false;
         StatusText = "停止中";
+    }
+
+    /// <summary>
+    /// リソースを解放する。
+    /// </summary>
+    public void Dispose()
+    {
+        StopJiggle();
     }
 }

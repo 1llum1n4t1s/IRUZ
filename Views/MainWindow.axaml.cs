@@ -15,10 +15,21 @@ namespace IRUZ.Views
         public MainWindow()
         {
             InitializeComponent();
+
+            // カスタムタイトルバー：ドラッグ・最小化・閉じる
+            PART_TitleBar.PointerPressed += (_, e) =>
+            {
+                if (!e.Handled && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                    BeginMoveDrag(e);
+            };
+            PART_Minimize.Click += (_, _) => WindowState = WindowState.Minimized;
+            PART_Close.Click += (_, _) => Close();
+
             Loaded += (_, _) =>
             {
                 if (_shouldStartMinimized)
                 {
+                    _shouldStartMinimized = false; // 2回目以降の Loaded で再度隠されないようリセット
                     WindowState = WindowState.Minimized;
                     ShowInTaskbar = false;
                     Hide();
