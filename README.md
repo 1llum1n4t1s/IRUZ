@@ -38,7 +38,7 @@ IRUZ のショートカットをスタートアップフォルダに入れてお
 
 ## 技術構成
 
-- **UI**: Avalonia 11（Actipro Controls 使用）
+- **UI**: Avalonia 12
 - **アーキテクチャ**: MVVM（CommunityToolkit.Mvvm）
 - **入力シミュレート**: user32.dll の SendInput（MOUSEEVENTF_MOVE で相対移動 ±1px）
 - **配布・更新**: Velopack
