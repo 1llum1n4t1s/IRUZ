@@ -1,5 +1,6 @@
 .cursor/
 .idea/
+.serena/
 .vs/
 .vscode/
 *.csproj.user
