@@ -3,9 +3,10 @@ name: Velopack リリース作成
 on:
   push:
 
-# 通常リリースは R2 単独配信。GitHub Releases は作らないので最小権限にする。
+# 踏み台 1.0.12 をワンタイムで GitHub Releases にも publish するため contents: write に一時昇格。
+# (このブランチ release/1.0.12 限定。main は contents: read のまま R2 単独配信)
 permissions:
-  contents: read
+  contents: write
 
 # 複数の release/** push が overlap したときに cleanup の race condition を防ぐため直列化する。
 # cancel-in-progress: false = 走っている run を完走させてから次を queue する (削除途中の中断を避ける)。
@@ -167,6 +168,25 @@ jobs:
             Get-ChildItem -Path $outputDir -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
           } else {
             Write-Error "Artifacts directory was not created"
+            exit 1
+          }
+
+      # 踏み台ワンタイム: 旧 GithubSource クライアント (1.0.11) が更新で拾えるよう
+      # GitHub Releases にも 1.0.12 を publish する。main には存在しないステップで、
+      # この release/1.0.12 ブランチでのみ実行される。
+      - name: GitHub Releases にアップロード (踏み台ワンタイム / release/1.0.12 限定)
+        shell: pwsh
+        run: |
+          $repoUrl = "https://github.com/${{ github.repository }}"
+          vpk upload github `
+            --repoUrl $repoUrl `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --outputDir artifacts `
+            --channel win `
+            --publish `
+            --releaseName "IRUZ $env:RELEASE_VERSION"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "vpk upload github failed with exit code $LASTEXITCODE"
             exit 1
           }
 
