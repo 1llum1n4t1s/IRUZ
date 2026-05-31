@@ -9,7 +9,8 @@ namespace IRUZ;
 
 internal sealed class Program
 {
-    private const string GitHubRepoUrl = "https://github.com/1llum1n4t1s/IRUZ";
+    // 自動更新の配信元（Cloudflare R2 カスタムドメイン経由の SimpleWebSource）。
+    private const string UpdateBaseUrl = "https://iruz.nephilim.jp";
     private const string MutexName = "Local\\IRUZ_SingleInstance_B7A3F1E0";
     private const string ShowWindowEventName = "Local\\IRUZ_ShowWindow_B7A3F1E0";
     internal static volatile Action? RestoreFromTray;
@@ -68,7 +69,7 @@ internal sealed class Program
     {
         try
         {
-            var source = new GithubSource(GitHubRepoUrl, string.Empty, false);
+            var source = new SimpleWebSource(UpdateBaseUrl);
             var options = new UpdateOptions { ExplicitChannel = "win" };
             var mgr = new UpdateManager(source, options);
             var newVersion = await mgr.CheckForUpdatesAsync();
