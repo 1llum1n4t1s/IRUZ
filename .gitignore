@@ -8,3 +8,4 @@
 bin/
 obj/
 build_output.txt
+local-release/
