@@ -6,7 +6,7 @@
 #
 # 前提:
 #   - SimplySign Desktop が接続済み (証明書が CurrentUser\My に見えていること)
-#   - IRUZ.csproj の <Version> がリリースしたいバージョンになっていること (/vava 済み)
+#   - Directory.Build.props の <Version> がリリースしたいバージョンになっていること (/vava 済み)
 #   - C:\Users\IMT\dev\Secret\secrets.json に cloudflare.api_token があること
 #
 # 使い方:
@@ -69,10 +69,10 @@ if ($env:PATH -notlike "*$vsInstallerDir*") { $env:PATH = "$env:PATH;$vsInstalle
 # vpk (dotnet tool) のランタイム要求とローカル SDK 構成の差をロールフォワードで吸収
 $env:DOTNET_ROLL_FORWARD = 'Major'
 
-# XPath で取得 (member enumeration は Version を持たない PropertyGroup 混在時に StrictMode で throw する)
-$versionNode = ([xml](Get-Content 'IRUZ.csproj' -Raw)).SelectSingleNode('/Project/PropertyGroup/Version')
+# バージョンは Directory.Build.props の <Version> で一元管理。XPath で取得する。
+$versionNode = ([xml](Get-Content 'Directory.Build.props' -Raw)).SelectSingleNode('/Project/PropertyGroup/Version')
 $version = if ($versionNode) { $versionNode.InnerText.Trim() } else { $null }
-if (-not $version) { throw 'IRUZ.csproj から <Version> を取得できませんでした' }
+if (-not $version) { throw 'Directory.Build.props から <Version> を取得できませんでした' }
 Write-Host "バージョン: $version"
 
 # SimplySign 接続確認 (証明書が見えなければ署名できないので最初に落とす)
@@ -134,7 +134,7 @@ foreach ($runtime in $Runtimes) {
             --packDir $publishDir `
             --outputDir $ArtifactsDir `
             --channel $config.Channel `
-            --shortcuts 'StartMenu,Desktop' `
+            --shortcuts 'StartMenuRoot,Desktop' `
             --signParams $SignParams
     }
 }
@@ -168,6 +168,29 @@ foreach ($f in Get-ChildItem $ArtifactsDir -File) {
     $uploaded++
 }
 Write-Host "✅ R2 アップロード完了: $uploaded ファイル"
+
+# ---- 2.5 Cloudflare エッジキャッシュのパージ ----
+# 固定名ファイル (Setup.exe / Portable.zip / RELEASES / releases.*.json / assets.*.json) は
+# 毎リリースで中身が変わるのに URL が不変。CDN エッジが旧版を Cache-Control の max-age 分保持するため、
+# パージしないと新規ダウンロード・自動更新が旧バージョンを掴む。アップロード直後に該当 URL をパージして
+# 伝播を確定する。バージョン付き nupkg は URL が一意 (旧キャッシュなし) のためパージ不要。
+Write-Host '== Cloudflare キャッシュパージ ==' -ForegroundColor Cyan
+$cfHeaders = @{ Authorization = "Bearer $($env:CLOUDFLARE_API_TOKEN)" }
+$zoneName = ([uri]$BaseUrl).Host -replace '^[^.]+\.', ''   # <sub>.nephilim.jp → nephilim.jp (apex)
+$zoneResp = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/zones?name=$zoneName" -Headers $cfHeaders -TimeoutSec 30
+if (-not $zoneResp.success -or @($zoneResp.result).Count -eq 0) { throw "Cloudflare zone '$zoneName' の取得に失敗しました" }
+$zoneId = $zoneResp.result[0].id
+$purgeUrls = @(Get-ChildItem $ArtifactsDir -File | Where-Object { $_.Name -notlike '*.nupkg' } | ForEach-Object { "$BaseUrl/$($_.Name)" })
+if ($purgeUrls.Count -gt 0) {
+    $purgeBody = "{`"files`":$(ConvertTo-Json -InputObject $purgeUrls -AsArray -Compress)}"
+    $purgeResp = Invoke-RestMethod -Method Post -Uri "https://api.cloudflare.com/client/v4/zones/$zoneId/purge_cache" `
+        -Headers $cfHeaders -ContentType 'application/json' -Body $purgeBody -TimeoutSec 30
+    if (-not $purgeResp.success) { throw "Cloudflare キャッシュパージに失敗しました: $($purgeResp.errors | ConvertTo-Json -Compress)" }
+    Write-Host "  ✅ パージ: $($purgeUrls.Count) URL"
+    $purgeUrls | ForEach-Object { Write-Host "     $_" }
+} else {
+    Write-Host '  パージ対象なし'
+}
 
 # ---- 3. 配信確認 (CDN/edge 伝播チェック) ----
 Write-Host '== 配信確認 ==' -ForegroundColor Cyan
