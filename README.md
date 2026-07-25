@@ -6,7 +6,7 @@ Windows 用のマウスジグルツールです。定期的にマウス入力を
 
 ## ダウンロード
 
-[インストーラー](https://iruz.nephilim.jp/IRUZ-win-Setup.exe)をダウンロードして実行してください。
+[インストーラー](https://iruz.kagayoi.com/IRUZ-win-Setup.exe)をダウンロードして実行してください。
 
 <img width="644" height="420" alt="image" src="https://github.com/user-attachments/assets/46aae56c-d513-47e6-86cd-10950b9b0d72" />
 
