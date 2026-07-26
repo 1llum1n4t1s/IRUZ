@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
     <!-- 全プロジェクト共通の唯一のバージョン定義。ここだけ更新すれば csproj は継承する (/vava もこの 1 行を更新)。 -->
-    <Version>1.0.14</Version>
+    <Version>1.0.15</Version>
   </PropertyGroup>
 </Project>
