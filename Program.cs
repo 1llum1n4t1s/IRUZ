@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,8 +10,10 @@ namespace IRUZ;
 
 internal sealed class Program
 {
+    private const string AppUserModelId = "velopack.IRUZ";
+
     // 自動更新の配信元（Cloudflare R2 カスタムドメイン経由の SimpleWebSource）。
-    private const string UpdateBaseUrl = "https://iruz.nephilim.jp";
+    private const string UpdateBaseUrl = "https://iruz.kagayoi.com";
     private const string MutexName = "Local\\IRUZ_SingleInstance_B7A3F1E0";
     private const string ShowWindowEventName = "Local\\IRUZ_ShowWindow_B7A3F1E0";
     internal static volatile Action? RestoreFromTray;
@@ -23,6 +26,8 @@ internal sealed class Program
     [STAThread]
     public static async Task Main(string[] args)
     {
+        TrySetCurrentProcessAppUserModelId();
+
         // Velopack のブートストラップを最初に実行する。
         // インストール・アップデート引数の処理が必要なため、多重起動チェックより前に呼ぶ。
         VelopackApp.Build().Run();
@@ -81,6 +86,15 @@ internal sealed class Program
         }
         catch { }
     }
+
+    private static void TrySetCurrentProcessAppUserModelId()
+    {
+        try { _ = SetCurrentProcessExplicitAppUserModelID(AppUserModelId); }
+        catch { /* シェル連携の失敗だけで起動を止めない */ }
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
