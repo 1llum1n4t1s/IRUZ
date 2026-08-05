@@ -11,14 +11,23 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishAot>true</PublishAot>
     <PublishTrimmed>true</PublishTrimmed>
+    <!-- SelfContained は AOT では自動だが、tests 側と一致させる必要がある (NETSDK1151) ので明示を残す。 -->
     <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- PublishSingleFile / IncludeNativeLibrariesForSelfExtract は指定しない。
+         Native AOT は単一のネイティブ exe を直接生成するため、単一ファイル発行の設定は AOT 経路では効かない。 -->
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="icon\app.ico" />
+  </ItemGroup>
+
+  <!-- テストプロジェクトはルート直下の既定 glob に含まれるため明示的に除外する。 -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <AvaloniaXaml Remove="tests\**" />
+    <AvaloniaResource Remove="tests\**" />
+    <None Remove="tests\**" />
   </ItemGroup>
 
   <Target Name="GenerateIcon" BeforeTargets="BeforeBuild" Inputs="icon\app_icon.png" Outputs="icon\app.ico">

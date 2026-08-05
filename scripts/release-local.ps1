@@ -128,7 +128,7 @@ foreach ($runtime in $Runtimes) {
             --packId IRUZ `
             --packVersion $version `
             --packTitle 'IRUZ' `
-            --packAuthors 'IRUZ' `
+            --packAuthors 'Kagayoi' `
             --mainExe IRUZ.exe `
             --icon (Join-Path 'icon' 'app.ico') `
             --packDir $publishDir `

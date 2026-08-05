@@ -24,13 +24,16 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            var viewModel = new MainWindowViewModel();
             var mainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(),
+                DataContext = viewModel,
             };
             // ウィンドウが表示される前に最小化することを指示
             mainWindow.SetStartMinimized();
             desktop.MainWindow = mainWindow;
+            // 終了時にタイマーを止める（トレイの「終了」が呼ぶ Shutdown() でも Exit は発火する）
+            desktop.Exit += (_, _) => viewModel.Dispose();
             SetupTrayIcon(desktop, mainWindow);
         }
 

@@ -1,6 +1,18 @@
 <Project>
   <PropertyGroup>
     <!-- 全プロジェクト共通の唯一のバージョン定義。ここだけ更新すれば csproj は継承する (/vava もこの 1 行を更新)。 -->
-    <Version>1.0.15</Version>
+    <Version>1.0.16</Version>
+    <!-- 製作者情報。Company は exe のプロパティに載るので屋号で統一する。 -->
+    <Authors>Kagayoi</Authors>
+    <Company>Kagayoi</Company>
+    <Copyright>Copyright © 2026 Kagayoi</Copyright>
+    <!-- 警告をエラー扱いにして品質ゲートを他リポジトリと揃える。 -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NuGet 依存のサプライチェーン保護: lockfile (packages.lock.json) を生成・検証する。 -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- IDE コードスタイル分析をビルド時にも強制する (IDE0005 等)。IDE0005 はドキュメント生成が必須。 -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 </Project>

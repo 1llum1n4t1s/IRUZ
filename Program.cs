@@ -16,6 +16,17 @@ internal sealed class Program
     private const string UpdateBaseUrl = "https://iruz.kagayoi.com";
     private const string MutexName = "Local\\IRUZ_SingleInstance_B7A3F1E0";
     private const string ShowWindowEventName = "Local\\IRUZ_ShowWindow_B7A3F1E0";
+
+    /// <summary>
+    /// 更新チェックの待ち時間上限。応答の無い配信元で起動が止まり続けないようにする。
+    /// </summary>
+    private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// 終了時に単一インスタンス監視タスクの終了を待つ上限。
+    /// </summary>
+    private static readonly TimeSpan ListenerShutdownTimeout = TimeSpan.FromSeconds(2);
+
     internal static volatile Action? RestoreFromTray;
 
     /// <summary>
@@ -24,7 +35,7 @@ internal sealed class Program
     internal static volatile bool PendingRestore;
 
     [STAThread]
-    public static async Task Main(string[] args)
+    public static void Main(string[] args)
     {
         TrySetCurrentProcessAppUserModelId();
 
@@ -47,12 +58,17 @@ internal sealed class Program
 
         using var showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
         using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => ListenForShowWindow(showWindowEvent, cts.Token));
+        var showWindowListener = Task.Run(() => ListenForShowWindow(showWindowEvent, cts.Token));
 
-        await TryForceUpdateAsync(args);
+        // await を挟むと継続がスレッドプール（MTA）へ移り、Avalonia の UI スレッドが STA でなくなる。
+        // STA を保ったまま起動するため、更新処理はこのスレッド上で同期的に完了させる。
+        TryForceUpdate(args);
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
         cts.Cancel();
+        // WaitHandle を破棄する前に監視タスクと合流する（WaitAny 実行中の Dispose を避ける）
+        try { showWindowListener.Wait(ListenerShutdownTimeout); }
+        catch { /* 監視タスクの後始末に失敗してもプロセス終了は妨げない */ }
     }
 
     private static void ListenForShowWindow(EventWaitHandle showEvent, CancellationToken ct)
@@ -70,21 +86,24 @@ internal sealed class Program
         }
     }
 
-    private static async Task TryForceUpdateAsync(string[] args)
+    private static void TryForceUpdate(string[] args)
     {
         try
         {
             var source = new SimpleWebSource(UpdateBaseUrl);
             var options = new UpdateOptions { ExplicitChannel = "win" };
             var mgr = new UpdateManager(source, options);
-            var newVersion = await mgr.CheckForUpdatesAsync();
-            if (newVersion != null)
-            {
-                await mgr.DownloadUpdatesAsync(newVersion);
-                mgr.ApplyUpdatesAndRestart(newVersion, args);
-            }
+
+            // CheckForUpdatesAsync は CancellationToken を受け取らないため、待ち時間側を打ち切る。
+            // 打ち切った場合は今回の更新を諦め、次回起動で改めて確認する。
+            var newVersion = mgr.CheckForUpdatesAsync().WaitAsync(UpdateCheckTimeout).GetAwaiter().GetResult();
+            if (newVersion == null)
+                return;
+
+            mgr.DownloadUpdatesAsync(newVersion).GetAwaiter().GetResult();
+            mgr.ApplyUpdatesAndRestart(newVersion, args);
         }
-        catch { }
+        catch { /* 更新できなくても現行バージョンで起動を続ける */ }
     }
 
     private static void TrySetCurrentProcessAppUserModelId()

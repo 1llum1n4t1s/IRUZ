@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="IRUZ.csproj" />
+  <Project Path="tests/IRUZ.Tests/IRUZ.Tests.csproj" />
 </Solution>
