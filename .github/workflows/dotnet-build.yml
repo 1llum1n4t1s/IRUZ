@@ -29,7 +29,6 @@ jobs:
 
       - name: テスト実行
         run: dotnet test IRUZ.slnx --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
-        continue-on-error: true
 
       - name: テスト結果をアップロード
         uses: actions/upload-artifact@v7

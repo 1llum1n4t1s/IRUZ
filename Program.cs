@@ -23,6 +23,12 @@ internal sealed class Program
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
+    /// 更新本体のダウンロード待ち時間上限。チェックより長く取るが、
+    /// 停滞した配信元で起動（トレイ常駐の開始）が止まり続けないよう必ず打ち切る。
+    /// </summary>
+    private static readonly TimeSpan UpdateDownloadTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
     /// 終了時に単一インスタンス監視タスクの終了を待つ上限。
     /// </summary>
     private static readonly TimeSpan ListenerShutdownTimeout = TimeSpan.FromSeconds(2);
@@ -43,20 +49,19 @@ internal sealed class Program
         // インストール・アップデート引数の処理が必要なため、多重起動チェックより前に呼ぶ。
         VelopackApp.Build().Run();
 
+        // 通知用イベントは Mutex より先に用意する。逆順だと、1つ目がイベントを作る前に
+        // 2つ目が来たときに OpenExisting が失敗し、ウィンドウ表示の通知が落ちる。
+        // 同名なので、何番目のインスタンスから作っても同じカーネルオブジェクトを指す。
+        using var showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+
         using var mutex = new Mutex(true, MutexName, out var createdNew);
         if (!createdNew)
         {
             // 既に起動中のインスタンスにウィンドウ表示を通知して終了
-            try
-            {
-                using var showEvent = EventWaitHandle.OpenExisting(ShowWindowEventName);
-                showEvent.Set();
-            }
-            catch { }
+            showWindowEvent.Set();
             return;
         }
 
-        using var showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
         using var cts = new CancellationTokenSource();
         var showWindowListener = Task.Run(() => ListenForShowWindow(showWindowEvent, cts.Token));
 
@@ -100,7 +105,10 @@ internal sealed class Program
             if (newVersion == null)
                 return;
 
-            mgr.DownloadUpdatesAsync(newVersion).GetAwaiter().GetResult();
+            // ダウンロードは CancellationToken を受け取れるので、待ちを捨てるのではなく実際に中断させる。
+            // 打ち切ったら更新を適用せず現行バージョンで起動を続ける（次回起動で改めて試す）。
+            using var downloadCts = new CancellationTokenSource(UpdateDownloadTimeout);
+            mgr.DownloadUpdatesAsync(newVersion, cancelToken: downloadCts.Token).GetAwaiter().GetResult();
             mgr.ApplyUpdatesAndRestart(newVersion, args);
         }
         catch { /* 更新できなくても現行バージョンで起動を続ける */ }
