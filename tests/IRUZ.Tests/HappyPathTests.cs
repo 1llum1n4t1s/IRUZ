@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 using IRUZ.Services;
 using IRUZ.ViewModels;
 using Xunit;
@@ -404,5 +406,229 @@ public class HappyPathTests
         Assert.True(CursorPositionProbe.TryGet(out var after));
         Assert.Equal(before.X, after.X);
         Assert.Equal(before.Y, after.Y);
+    }
+
+    // ─────────────────────────────────────────────
+    // 自動解除タイマー
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// @happypath 自動解除の選択肢は「なし」＋ 1/2/3/4/5/6/8 時間後の8件。
+    /// </summary>
+    [Fact]
+    public void 既定状態で構築したときAutoStopOptionsがなしと1から8時間後であること()
+    {
+        using var vm = new MainWindowViewModel();
+
+        Assert.Equal(
+            new[] { "なし", "1時間後", "2時間後", "3時間後", "4時間後", "5時間後", "6時間後", "8時間後" },
+            vm.AutoStopOptions.Select(o => o.ToString()));
+    }
+
+    /// <summary>
+    /// @happypath 既定は自動解除なし。従来どおり止めるまでジグルし続ける。
+    /// </summary>
+    [Fact]
+    public void 構築直後は自動解除がなしで予定時刻が設定されないこと()
+    {
+        using var vm = new MainWindowViewModel();
+
+        Assert.Equal(AutoStopOption.None, vm.SelectedAutoStopOption);
+        Assert.Null(vm.AutoStopAt);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @happypath 15時に「3時間後」を選ぶと、18時ごろの解除予定が立つ（想定シナリオそのもの）。
+    /// </summary>
+    [Fact]
+    public void ジグル中に3時間後を選ぶとおよそ3時間後の解除予定になること()
+    {
+        using var vm = new MainWindowViewModel();
+        var before = DateTimeOffset.Now;
+
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        var after = DateTimeOffset.Now;
+        Assert.NotNull(vm.AutoStopAt);
+        Assert.InRange(vm.AutoStopAt!.Value, before.AddHours(3), after.AddHours(3));
+    }
+
+    /// <summary>
+    /// @happypath 自動解除を設定すると、残り時間と解除予定時刻が独立した行に出る。
+    /// </summary>
+    [Fact]
+    public void 自動解除を設定するとAutoStopTextに残り時間と予定時刻が出ること()
+    {
+        using var vm = new MainWindowViewModel();
+
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        Assert.True(vm.HasAutoStop);
+        Assert.StartsWith("自動解除まで 3:00:00（", vm.AutoStopText);
+        Assert.EndsWith(" に解除）", vm.AutoStopText);
+        Assert.Contains(vm.AutoStopAt!.Value.ToString("HH:mm", CultureInfo.InvariantCulture), vm.AutoStopText);
+        // カウントダウンは別行なので状態表示は簡潔なまま
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @happypath 残り時間は基準時刻に応じて減っていく。
+    /// </summary>
+    [Fact]
+    public void 予定時刻の1分前を基準にすると残り1分と表示されること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value.AddMinutes(-1));
+
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+        Assert.StartsWith("自動解除まで 0:01:00（", vm.AutoStopText);
+        Assert.True(vm.IsRunning);
+    }
+
+    /// <summary>
+    /// @happypath 予定時刻に達するとジグルが止まり、離席と判定される状態へ戻る。
+    /// </summary>
+    [Fact]
+    public void 予定時刻に達すると自動解除されて停止すること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value);
+
+        Assert.False(vm.IsRunning);
+        Assert.Null(vm.AutoStopAt);
+        Assert.Equal("自動解除しました（3時間経過）", vm.StatusText);
+        Assert.Equal("開始", vm.ToggleButtonText);
+    }
+
+    /// <summary>
+    /// @happypath 自動解除後に再開すると、同じ設定でもう一度カウントし直す。
+    /// </summary>
+    [Fact]
+    public void 自動解除後に再開すると同じ時間で再武装されること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(1);
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value);
+        Assert.False(vm.IsRunning);
+
+        var before = DateTimeOffset.Now;
+        vm.ToggleCommand.Execute(null); // 再開
+
+        Assert.True(vm.IsRunning);
+        Assert.NotNull(vm.AutoStopAt);
+        Assert.InRange(vm.AutoStopAt!.Value, before.AddHours(1), DateTimeOffset.Now.AddHours(1));
+    }
+
+    /// <summary>
+    /// @happypath 手動で停止したときも解除予定は破棄され、カウントダウン表示も消える。
+    /// </summary>
+    [Fact]
+    public void 手動停止すると解除予定が破棄されること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.ToggleCommand.Execute(null); // 停止
+
+        Assert.Null(vm.AutoStopAt);
+        Assert.False(vm.HasAutoStop);
+        Assert.Equal(string.Empty, vm.AutoStopText);
+        Assert.Equal("停止中", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @happypath 自動解除なしのときはカウントダウン行を出さない。
+    /// </summary>
+    [Fact]
+    public void 自動解除なしのときはカウントダウンを表示しないこと()
+    {
+        using var vm = new MainWindowViewModel();
+
+        Assert.False(vm.HasAutoStop);
+        Assert.Equal(string.Empty, vm.AutoStopText);
+    }
+
+    /// <summary>
+    /// @happypath カウントダウンの更新で変更通知が飛び、画面が追従する。
+    /// </summary>
+    [Fact]
+    public void カウントダウン更新でAutoStopTextの変更通知が発生すること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value.AddMinutes(-30));
+
+        Assert.Contains(nameof(MainWindowViewModel.AutoStopText), changed);
+        Assert.StartsWith("自動解除まで 0:30:00（", vm.AutoStopText);
+    }
+
+    // ─────────────────────────────────────────────
+    // MainWindowViewModel: 最小化・終了
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// @happypath 「最小化」ボタンは最小化を要求するだけで、実際の操作は App 側が行う。
+    /// </summary>
+    [Fact]
+    public void MinimizeCommandがMinimizeRequestedを発生させること()
+    {
+        using var vm = new MainWindowViewModel();
+        var raised = 0;
+        vm.MinimizeRequested += (_, _) => raised++;
+
+        vm.MinimizeCommand.Execute(null);
+
+        Assert.Equal(1, raised);
+    }
+
+    /// <summary>
+    /// @happypath 最小化してもジグルは動き続ける（トレイへ隠れるだけ）。
+    /// </summary>
+    [Fact]
+    public void MinimizeCommandはジグルの状態を変えないこと()
+    {
+        using var vm = new MainWindowViewModel();
+
+        vm.MinimizeCommand.Execute(null);
+
+        Assert.True(vm.IsRunning);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @happypath 「終了」ボタンはアプリ終了を要求するだけで、実際の終了は App 側が行う。
+    /// </summary>
+    [Fact]
+    public void ExitCommandがExitRequestedを発生させること()
+    {
+        using var vm = new MainWindowViewModel();
+        var raised = 0;
+        vm.ExitRequested += (_, _) => raised++;
+
+        vm.ExitCommand.Execute(null);
+
+        Assert.Equal(1, raised);
+    }
+
+    /// <summary>
+    /// @happypath 「終了」は「停止」とは別物で、ジグルの状態を変えない。
+    /// </summary>
+    [Fact]
+    public void ExitCommandはジグルの状態を変えないこと()
+    {
+        using var vm = new MainWindowViewModel();
+
+        vm.ExitCommand.Execute(null);
+
+        Assert.True(vm.IsRunning);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
     }
 }

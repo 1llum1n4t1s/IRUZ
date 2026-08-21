@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using IRUZ.Services;
 
 namespace IRUZ.Views
 {
@@ -16,14 +17,8 @@ namespace IRUZ.Views
         {
             InitializeComponent();
 
-            // カスタムタイトルバー：ドラッグ・最小化・閉じる
-            PART_TitleBar.PointerPressed += (_, e) =>
-            {
-                if (!e.Handled && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-                    BeginMoveDrag(e);
-            };
-            PART_Minimize.Click += (_, _) => WindowState = WindowState.Minimized;
-            PART_Close.Click += (_, _) => Close();
+            // 透過効果 OFF / リモートデスクトップではアクリルを不透明背景へ差し替える
+            AcrylicFallbackHelper.Attach(this);
 
             Loaded += (_, _) =>
             {

@@ -668,4 +668,292 @@ public class AdversarialTests
     }
 
     #endregion
+
+    #region 🖱️ 停止後の入力漏れ（Elapsed レース）
+
+    /// <summary>
+    /// @adversarial @category=並行性 @severity=high
+    /// System.Timers.Timer は Stop/Dispose 後も進行中の Elapsed を止めないため、
+    /// 停止済みの状態で発火した分は SendInput を送ってはいけない（離席判定が再武装される）。
+    /// </summary>
+    [Fact]
+    public void 停止後にタイマー発火分が走っても入力を送らないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        Assert.NotNull(vm.JiggleIfRunning()); // ジグル中は送る
+
+        vm.ToggleCommand.Execute(null); // 停止
+
+        Assert.Null(vm.JiggleIfRunning()); // 進行中の Elapsed 相当。送ってはいけない
+    }
+
+    /// <summary>
+    /// @adversarial @category=並行性 @severity=high
+    /// 自動解除でも同じ保証が要る。README が約束する「停止後は入力の送信が途絶える」の担保。
+    /// </summary>
+    [Fact]
+    public void 自動解除後にタイマー発火分が走っても入力を送らないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value); // 自動解除
+
+        Assert.False(vm.IsRunning);
+        Assert.Null(vm.JiggleIfRunning());
+    }
+
+    /// <summary>
+    /// @adversarial @category=並行性 @severity=high
+    /// Dispose 済みでも入力を送らず、例外も出さない。
+    /// </summary>
+    [Fact]
+    public void Dispose後は入力を送らず例外にもならないこと()
+    {
+        var vm = new MainWindowViewModel();
+        vm.Dispose();
+
+        var exception = Record.Exception(() => Assert.Null(vm.JiggleIfRunning()));
+
+        Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// @adversarial @category=並行性 @severity=high
+    /// 停止と発火を同時に解放しても状態が壊れず、停止が完了した後は必ず送らない。
+    /// （同時実行そのものの勝敗は非決定なので、収束後の不変条件を固定する）
+    /// </summary>
+    [Fact]
+    public void 停止と発火が競合しても停止完了後は必ず入力を送らないこと()
+    {
+        using var vm = new MainWindowViewModel();
+
+        var errors = TestHelpers.RunConcurrently(
+            () => vm.ToggleCommand.Execute(null),
+            () => vm.JiggleIfRunning());
+
+        Assert.Empty(errors);
+        Assert.False(vm.IsRunning);
+        Assert.Null(vm.JiggleIfRunning());
+    }
+
+    /// <summary>
+    /// @adversarial @category=状態遷移 @severity=med
+    /// 停止から再開すると、また送れるようになる（ゲートが開きっぱなし／閉じっぱなしにならない）。
+    /// </summary>
+    [Fact]
+    public void 停止と再開を繰り返しても入力可否がその都度切り替わること()
+    {
+        using var vm = new MainWindowViewModel();
+
+        for (var i = 0; i < 3; i++)
+        {
+            vm.ToggleCommand.Execute(null); // 停止
+            Assert.Null(vm.JiggleIfRunning());
+            vm.ToggleCommand.Execute(null); // 再開
+            Assert.NotNull(vm.JiggleIfRunning());
+        }
+    }
+
+    #endregion
+
+    #region 自動解除タイマー
+
+    /// <summary>
+    /// @adversarial 境界値: 予定時刻の1秒前ではまだ解除されない（オフバイワン確認）。
+    /// </summary>
+    [Fact]
+    public void 予定時刻の1秒前では自動解除されないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value.AddSeconds(-1));
+
+        Assert.True(vm.IsRunning);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+        Assert.StartsWith("自動解除まで 0:00:01（", vm.AutoStopText);
+    }
+
+    /// <summary>
+    /// @adversarial 環境異常: スリープ等で発火が大幅に遅れても、絶対時刻判定なので取りこぼさない。
+    /// </summary>
+    [Fact]
+    public void 予定時刻を大幅に過ぎた時刻で評価しても確実に自動解除されること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+        vm.UpdateAutoStop(vm.AutoStopAt!.Value.AddDays(2));
+
+        Assert.False(vm.IsRunning);
+        Assert.Equal("自動解除しました（3時間経過）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 状態遷移: 自動解除後に再評価しても状態文言が上書きされない。
+    /// </summary>
+    [Fact]
+    public void 自動解除後にもう一度評価しても状態が変わらないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(2);
+        var deadline = vm.AutoStopAt!.Value;
+        vm.UpdateAutoStop(deadline);
+
+        vm.UpdateAutoStop(deadline.AddHours(1));
+
+        Assert.False(vm.IsRunning);
+        Assert.Equal("自動解除しました（2時間経過）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 状態遷移: 停止中に評価しても「停止中」表示を壊さない。
+    /// </summary>
+    [Fact]
+    public void 停止中にUpdateAutoStopを呼んでもStatusTextが上書きされないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.ToggleCommand.Execute(null); // 停止
+
+        vm.UpdateAutoStop(DateTimeOffset.Now.AddDays(1));
+
+        Assert.False(vm.IsRunning);
+        Assert.Equal("停止中", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 状態遷移: 「なし」へ戻すと予定が取り消され、残り時間表示も消える。
+    /// </summary>
+    [Fact]
+    public void 自動解除をなしへ戻すと予定が取り消されて通常表示へ戻ること()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+        Assert.NotNull(vm.AutoStopAt);
+
+        vm.SelectedAutoStopOption = AutoStopOption.None;
+
+        Assert.Null(vm.AutoStopAt);
+        Assert.False(vm.HasAutoStop);
+        Assert.Equal(string.Empty, vm.AutoStopText);
+        Assert.True(vm.IsRunning);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 状態遷移: 途中で時間を変えると、その時点から数え直す（残りが延びる）。
+    /// </summary>
+    [Fact]
+    public void ジグル中に時間を変更すると変更時点から数え直すこと()
+    {
+        using var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(1);
+        var firstDeadline = vm.AutoStopAt!.Value;
+
+        vm.SelectedAutoStopOption = new AutoStopOption(6);
+
+        Assert.True(vm.AutoStopAt!.Value > firstDeadline.AddHours(4));
+        Assert.StartsWith("自動解除まで 6:00:00（", vm.AutoStopText);
+    }
+
+    /// <summary>
+    /// @adversarial 境界値: 0 以下の時間は「なし」扱いにして予定を立てない。
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void ゼロ以下の時間を指定しても自動解除が設定されないこと(int hours)
+    {
+        using var vm = new MainWindowViewModel();
+
+        vm.SelectedAutoStopOption = new AutoStopOption(hours);
+
+        Assert.Null(vm.AutoStopAt);
+        Assert.True(vm.IsRunning);
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 境界値: 極端に大きな時間でも DateTimeOffset を溢れさせず 24 時間へ丸める。
+    /// </summary>
+    [Theory]
+    [InlineData(25)]
+    [InlineData(100000)]
+    [InlineData(int.MaxValue)]
+    public void 過大な時間を指定しても24時間へ丸められて例外にならないこと(int hours)
+    {
+        using var vm = new MainWindowViewModel();
+
+        var exception = Record.Exception(() => vm.SelectedAutoStopOption = new AutoStopOption(hours));
+
+        Assert.Null(exception);
+        Assert.NotNull(vm.AutoStopAt);
+        Assert.StartsWith("自動解除まで 24:00:00（", vm.AutoStopText);
+        Assert.InRange(vm.AutoStopAt!.Value, DateTimeOffset.Now.AddHours(23), DateTimeOffset.Now.AddHours(25));
+    }
+
+    /// <summary>
+    /// @adversarial 境界値: ComboBox の選択解除などで null が入っても「なし」へ矯正する。
+    /// </summary>
+    [Fact]
+    public void 自動解除にnullを設定してもなしへ矯正されること()
+    {
+        using var vm = new MainWindowViewModel();
+
+        vm.SelectedAutoStopOption = null!;
+
+        Assert.Equal(AutoStopOption.None, vm.SelectedAutoStopOption);
+        Assert.Null(vm.AutoStopAt);
+    }
+
+    /// <summary>
+    /// @adversarial 状態遷移: Dispose 済みでも評価呼び出しが例外にならない。
+    /// </summary>
+    [Fact]
+    public void Dispose後にUpdateAutoStopを呼んでも例外にならないこと()
+    {
+        var vm = new MainWindowViewModel();
+        vm.SelectedAutoStopOption = new AutoStopOption(3);
+        vm.Dispose();
+
+        var exception = Record.Exception(() => vm.UpdateAutoStop(DateTimeOffset.Now.AddDays(1)));
+
+        Assert.Null(exception);
+        Assert.False(vm.IsRunning);
+        Assert.Equal("停止中", vm.StatusText);
+    }
+
+    /// <summary>
+    /// @adversarial 環境異常: 小数点記号や数字体系が異なるカルチャでも残り時間表示が崩れない。
+    /// </summary>
+    [Theory]
+    [InlineData("tr-TR")]
+    [InlineData("ar-SA")]
+    [InlineData("de-DE")]
+    public void カルチャを変えても残り時間がASCII数字のhmmss形式になること(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo(cultureName);
+            CultureInfo.CurrentUICulture = new CultureInfo(cultureName);
+            using var vm = new MainWindowViewModel();
+
+            vm.SelectedAutoStopOption = new AutoStopOption(3);
+
+            Assert.StartsWith("自動解除まで 3:00:00（", vm.AutoStopText);
+            // 解除予定時刻も ASCII 数字の HH:mm であること（ar-SA の暦・数字体系に引きずられない）
+            Assert.Matches(@"（[0-9]{2}:[0-9]{2} に解除）$", vm.AutoStopText);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
+    #endregion
 }

@@ -4,7 +4,67 @@
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="/Resources/Themes.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!--  ═══════════════════════════════════════════════════════════  -->
+        <!--  macOS Tahoe 風グローバルスタイル（Lhamiel と共通）  -->
+        <!--  ═══════════════════════════════════════════════════════════  -->
+
+        <!--  全ウィンドウ共通フォント：CJK フォールバック付き  -->
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="Yu Gothic UI, Segoe UI, Microsoft YaHei, Malgun Gothic, Noto Sans CJK, sans-serif" />
+        </Style>
+
+        <!--  ボタン：Tahoe の大きな角丸 + 十分なパディング  -->
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!--  ComboBox：Tahoe 風の角丸  -->
+        <Style Selector="ComboBox">
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
+        <!--  CheckBox：角丸を強調  -->
+        <Style Selector="CheckBox /template/ Border#NormalRectangle">
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+
+        <!--  HeaderedContentControl：Tahoe 風ガラスパネル  -->
+        <Style Selector="HeaderedContentControl">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border
+                        Margin="0,0,0,12"
+                        Padding="16"
+                        Background="{DynamicResource Brush.Container}"
+                        BorderBrush="{DynamicResource Brush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="14">
+                        <StackPanel>
+                            <TextBlock
+                                Margin="0,0,0,10"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource Brush.FG2}"
+                                Text="{TemplateBinding Header}" />
+                            <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" />
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
     </Application.Styles>
 </Application>
