@@ -305,8 +305,8 @@
       },
       "Tmds.DBus.Protocol": {
         "type": "Transitive",
-        "resolved": "0.94.2",
-        "contentHash": "AePc2k7vqIXCR/a6hsG4afO22LuSaGLR3tLUBPWkZAH2mhLu/PL3/dYABEniWV7QHzV444No8IiTRV4+oCq37g=="
+        "resolved": "0.95.0",
+        "contentHash": "qsC7o0FVMB/j+3Zt0ppoORlpWticKsHMN5NFG6egiUz3yYspqiV/3TxSK9iuitg1w6IYbMcwelPkLgeE8T074w=="
       },
       "Velopack": {
         "type": "Transitive",
@@ -388,7 +388,7 @@
           "Avalonia.Fonts.Inter": "[12.1.1, )",
           "Avalonia.Themes.Fluent": "[12.1.1, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
-          "Tmds.DBus.Protocol": "[0.94.2, )",
+          "Tmds.DBus.Protocol": "[0.95.0, )",
           "Velopack": "[1.2.0, )"
         }
       }
