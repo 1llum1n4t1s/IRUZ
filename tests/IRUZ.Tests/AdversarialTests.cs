@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Headless.XUnit;
@@ -430,6 +431,40 @@ public class AdversarialTests
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("停止中", vm.StatusText);
         Assert.False(vm.IsRunning);
+    }
+
+    /// <summary>
+    /// @adversarial 停止後に再開した場合も、前回のタイマーが投函した結果で現在の表示を壊さない。
+    /// </summary>
+    [Fact]
+    public void 停止後に再開しても前回のジグル結果でStatusTextが上書きされないこと()
+    {
+        using var vm = new MainWindowViewModel();
+        var timerField = typeof(MainWindowViewModel).GetField(
+            "_timer",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(timerField);
+        var staleTimer = Assert.IsType<System.Timers.Timer>(timerField.GetValue(vm));
+
+        vm.ToggleCommand.Execute(null); // 停止
+        vm.ToggleCommand.Execute(null); // 新しいタイマーで再開
+        var currentTimer = Assert.IsType<System.Timers.Timer>(timerField.GetValue(vm));
+        Assert.NotSame(staleTimer, currentTimer);
+
+        var jiggleCurrentTimer = typeof(MainWindowViewModel).GetMethod(
+            "JiggleIfCurrentTimer",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(jiggleCurrentTimer);
+        Assert.Null(jiggleCurrentTimer.Invoke(vm, [staleTimer]));
+
+        var applyResult = typeof(MainWindowViewModel).GetMethod(
+            "ApplyJiggleResult",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(applyResult);
+        applyResult.Invoke(vm, [staleTimer, false]);
+
+        Assert.Equal("ジグル中（60秒ごと）", vm.StatusText);
+        Assert.True(vm.IsRunning);
     }
 
     /// <summary>

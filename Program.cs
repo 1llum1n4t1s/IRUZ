@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using IRUZ.Services;
 using Velopack;
 using Velopack.Sources;
 
@@ -16,6 +18,7 @@ internal sealed class Program
     private const string UpdateBaseUrl = "https://iruz.kagayoi.com";
     private const string MutexName = "Local\\IRUZ_SingleInstance_B7A3F1E0";
     private const string ShowWindowEventName = "Local\\IRUZ_ShowWindow_B7A3F1E0";
+    internal const string RestoreWindowArgument = "--restore-window";
 
     /// <summary>
     /// 更新チェックの待ち時間上限。応答の無い配信元で起動が止まり続けないようにする。
@@ -33,12 +36,7 @@ internal sealed class Program
     /// </summary>
     private static readonly TimeSpan ListenerShutdownTimeout = TimeSpan.FromSeconds(2);
 
-    internal static volatile Action? RestoreFromTray;
-
-    /// <summary>
-    /// トレイ登録前に復帰要求が届いた場合の保留フラグ。
-    /// </summary>
-    internal static volatile bool PendingRestore;
+    internal static WindowRestoreCoordinator RestoreCoordinator { get; } = new();
 
     [STAThread]
     public static void Main(string[] args)
@@ -48,6 +46,9 @@ internal sealed class Program
         // Velopack のブートストラップを最初に実行する。
         // インストール・アップデート引数の処理が必要なため、多重起動チェックより前に呼ぶ。
         VelopackApp.Build().Run();
+
+        // 更新後の再起動で引き継いだ復帰要求はアプリ引数から除き、UI 登録まで保留する。
+        var applicationArgs = PrepareApplicationArguments(args, RestoreCoordinator);
 
         // 通知用イベントは Mutex より先に用意する。逆順だと、1つ目がイベントを作る前に
         // 2つ目が来たときに OpenExisting が失敗し、ウィンドウ表示の通知が落ちる。
@@ -67,8 +68,8 @@ internal sealed class Program
 
         // await を挟むと継続がスレッドプール（MTA）へ移り、Avalonia の UI スレッドが STA でなくなる。
         // STA を保ったまま起動するため、更新処理はこのスレッド上で同期的に完了させる。
-        TryForceUpdate(args);
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        TryForceUpdate(applicationArgs);
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(applicationArgs);
 
         cts.Cancel();
         // WaitHandle を破棄する前に監視タスクと合流する（WaitAny 実行中の Dispose を避ける）
@@ -83,12 +84,46 @@ internal sealed class Program
         {
             if (WaitHandle.WaitAny(handles) == 0)
             {
-                if (RestoreFromTray is { } restore)
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => restore());
-                else
-                    PendingRestore = true; // トレイ未登録 → 登録完了後に処理
+                var restore = RestoreCoordinator.RequestRestore();
+                if (restore is not null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(restore);
             }
         }
+    }
+
+    internal static string[] PrepareApplicationArguments(
+        string[] args,
+        WindowRestoreCoordinator restoreCoordinator)
+    {
+        var applicationArgs = new List<string>(args.Length);
+        var restoreRequested = false;
+
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, RestoreWindowArgument, StringComparison.Ordinal))
+                restoreRequested = true;
+            else
+                applicationArgs.Add(arg);
+        }
+
+        if (!restoreRequested)
+            return args;
+
+        restoreCoordinator.RequestRestore();
+        return applicationArgs.ToArray();
+    }
+
+    internal static string[] PrepareRestartArguments(
+        string[] args,
+        WindowRestoreCoordinator restoreCoordinator)
+    {
+        if (!restoreCoordinator.HasPendingRestore ||
+            Array.Exists(args, arg => string.Equals(arg, RestoreWindowArgument, StringComparison.Ordinal)))
+        {
+            return args;
+        }
+
+        return [.. args, RestoreWindowArgument];
     }
 
     private static void TryForceUpdate(string[] args)
@@ -109,7 +144,7 @@ internal sealed class Program
             // 打ち切ったら更新を適用せず現行バージョンで起動を続ける（次回起動で改めて試す）。
             using var downloadCts = new CancellationTokenSource(UpdateDownloadTimeout);
             mgr.DownloadUpdatesAsync(newVersion, cancelToken: downloadCts.Token).GetAwaiter().GetResult();
-            mgr.ApplyUpdatesAndRestart(newVersion, args);
+            mgr.ApplyUpdatesAndRestart(newVersion, PrepareRestartArguments(args, RestoreCoordinator));
         }
         catch { /* 更新できなくても現行バージョンで起動を続ける */ }
     }

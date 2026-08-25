@@ -59,10 +59,16 @@ public partial class App : Application
             viewModel.MinimizeRequested += (_, _) => mainWindow.WindowState = WindowState.Minimized;
             // ウィンドウの「終了」ボタンからアプリ終了へつなぐ
             viewModel.ExitRequested += (_, _) => ExitApplication(desktop);
-            // 終了時にタイマーを止める（トレイの「終了」が呼ぶ Shutdown() でも Exit は発火する）
+            // トレイの「終了」が呼ぶ Shutdown() でも Exit は発火するため、ここで全リソースを解放する。
             desktop.Exit += (_, _) =>
             {
+                _windowStateSubscription?.Dispose();
+                _windowStateSubscription = null;
+                // TrayIcon.Dispose は通知領域からアイコンを削除する Avalonia の正式な終了契約。
+                _trayIcon?.Dispose();
+                _trayIcon = null;
                 _trayMenu?.Dispose();
+                _trayMenu = null;
                 viewModel.Dispose();
             };
             SetupTrayIcon(desktop, mainWindow, viewModel);
@@ -116,17 +122,13 @@ public partial class App : Application
         // 二重起動時の復帰は Loaded 後にだけ有効化する。
         // Loaded より前にアクションを登録すると、そこへ届いた復帰要求が Normal 優先度で先に走り、
         // 後から動く Loaded（DispatcherPriority.Loaded は Normal より低い）の起動時最小化に
-        // 打ち消されてウィンドウが出ない。Loaded 前の要求は PendingRestore 経由でここが拾う。
+        // 打ち消されてウィンドウが出ない。Loaded 前の要求は RestoreCoordinator 経由でここが拾う。
         // このハンドラは MainWindow のコンストラクタが登録した起動時最小化の後に実行される。
         mainWindow.Loaded += (_, _) =>
         {
-            Program.RestoreFromTray = () => RestoreFromTray(mainWindow);
-
-            if (Program.PendingRestore)
-            {
-                Program.PendingRestore = false;
-                RestoreFromTray(mainWindow);
-            }
+            Action restore = () => RestoreFromTray(mainWindow);
+            if (Program.RestoreCoordinator.RegisterRestore(restore))
+                restore();
         };
 
         _windowStateSubscription = mainWindow.GetObservable(Window.WindowStateProperty).Subscribe(new WindowStateObserver(state =>

@@ -253,14 +253,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void StartJiggle()
     {
-        _timer?.Stop();
-        _timer?.Dispose();
         _consecutiveJiggleFailures = 0;
+        var timer = new System.Timers.Timer(EffectiveIntervalSeconds * 1000.0);
+        timer.Elapsed += (_, _) => OnJiggleElapsed(timer);
+        System.Timers.Timer? previousTimer;
         lock (_jiggleGate)
+        {
+            previousTimer = _timer;
+            _timer = timer;
             _jiggleEnabled = true;
-        _timer = new System.Timers.Timer(EffectiveIntervalSeconds * 1000.0);
-        _timer.Elapsed += (_, _) => OnJiggleElapsed();
-        _timer.Start();
+        }
+        previousTimer?.Stop();
+        previousTimer?.Dispose();
+        timer.Start();
         IsRunning = true;
         ArmAutoStop(DateTimeOffset.Now);
         StatusText = RunningStatusText;
@@ -318,6 +323,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var hours = EffectiveAutoStopHours;
             StopJiggle();
+            SelectedAutoStopOption = AutoStopOption.None;
             StatusText = $"自動解除しました（{hours}時間経過）";
             return;
         }
@@ -342,44 +348,62 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool? JiggleIfCurrentTimer(System.Timers.Timer sourceTimer)
+    {
+        lock (_jiggleGate)
+        {
+            if (!_jiggleEnabled || !ReferenceEquals(_timer, sourceTimer))
+                return null;
+
+            return MouseJiggleHelper.Jiggle();
+        }
+    }
+
     /// <summary>
     /// タイマー発火ごとにジグルし、SendInput の失敗を状態表示へ反映する。
     /// 画面ロック中などの失敗は解除で復帰するため、失敗を理由に停止はしない。
     /// </summary>
-    private void OnJiggleElapsed()
+    private void OnJiggleElapsed(System.Timers.Timer sourceTimer)
     {
-        if (JiggleIfRunning() is not { } succeeded)
+        if (JiggleIfCurrentTimer(sourceTimer) is not { } succeeded)
             return; // 停止済み。進行中の Elapsed だったので何も送らず何も表示しない
 
         // Elapsed は別スレッドで発火するため、UI に触れる更新は UI スレッドへ回す
-        Dispatcher.UIThread.Post(() =>
+        Dispatcher.UIThread.Post(() => ApplyJiggleResult(sourceTimer, succeeded));
+    }
+
+    private void ApplyJiggleResult(System.Timers.Timer sourceTimer, bool succeeded)
+    {
+        // 停止・再開をまたいだ古いタイマーの結果は、現在の状態へ反映しない。
+        if (!IsRunning || !ReferenceEquals(_timer, sourceTimer))
+            return;
+
+        if (succeeded)
         {
-            if (!IsRunning)
-                return;
-
-            if (succeeded)
+            if (_consecutiveJiggleFailures > 0)
             {
-                if (_consecutiveJiggleFailures > 0)
-                {
-                    _consecutiveJiggleFailures = 0;
-                    StatusText = RunningStatusText;
-                }
-                return;
+                _consecutiveJiggleFailures = 0;
+                StatusText = RunningStatusText;
             }
+            return;
+        }
 
-            _consecutiveJiggleFailures++;
-            StatusText = $"ジグル失敗（{_consecutiveJiggleFailures}回連続・画面ロック中の可能性）";
-        });
+        _consecutiveJiggleFailures++;
+        StatusText = $"ジグル失敗（{_consecutiveJiggleFailures}回連続・画面ロック中の可能性）";
     }
 
     private void StopJiggle()
     {
         // タイマー破棄より先に入力を止める（進行中の Elapsed をここでブロックして弾く）
+        System.Timers.Timer? timer;
         lock (_jiggleGate)
+        {
             _jiggleEnabled = false;
-        _timer?.Stop();
-        _timer?.Dispose();
-        _timer = null;
+            timer = _timer;
+            _timer = null;
+        }
+        timer?.Stop();
+        timer?.Dispose();
         _consecutiveJiggleFailures = 0;
         IsRunning = false;
         DisarmAutoStop();

@@ -501,27 +501,27 @@ public class HappyPathTests
 
         Assert.False(vm.IsRunning);
         Assert.Null(vm.AutoStopAt);
+        Assert.Equal(AutoStopOption.None, vm.SelectedAutoStopOption);
         Assert.Equal("自動解除しました（3時間経過）", vm.StatusText);
         Assert.Equal("開始", vm.ToggleButtonText);
     }
 
     /// <summary>
-    /// @happypath 自動解除後に再開すると、同じ設定でもう一度カウントし直す。
+    /// @happypath 自動解除後に再開しても、時間を再選択するまではカウントしない。
     /// </summary>
     [Fact]
-    public void 自動解除後に再開すると同じ時間で再武装されること()
+    public void 自動解除後に再開すると自動解除なしで動作すること()
     {
         using var vm = new MainWindowViewModel();
         vm.SelectedAutoStopOption = new AutoStopOption(1);
         vm.UpdateAutoStop(vm.AutoStopAt!.Value);
         Assert.False(vm.IsRunning);
 
-        var before = DateTimeOffset.Now;
         vm.ToggleCommand.Execute(null); // 再開
 
         Assert.True(vm.IsRunning);
-        Assert.NotNull(vm.AutoStopAt);
-        Assert.InRange(vm.AutoStopAt!.Value, before.AddHours(1), DateTimeOffset.Now.AddHours(1));
+        Assert.Equal(AutoStopOption.None, vm.SelectedAutoStopOption);
+        Assert.Null(vm.AutoStopAt);
     }
 
     /// <summary>
