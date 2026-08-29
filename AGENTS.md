@@ -9,7 +9,7 @@
 - `App.axaml.cs` はウィンドウとトレイのライフタイム、明示終了、リソース解放を担当する。
 - `ViewModels/` は画面とトレイで共有する状態・コマンド・タイマー制御を持ち、`Services/` は Windows API、レジストリ、トレイ同期などの境界を持つ。
 - `Views/` と `Resources/` は表示とテーマに限定する。コードビハインドにはウィンドウ固有の表示制御だけを置く。
-- `tests/IRUZ.Tests/` は xUnit v3 と Avalonia Headless による正常系・境界・競合・ライフタイムの回帰テストである。
+- `tests/IRUZ.Tests/` は xUnit 4 / MTP v2 と Avalonia Headless による正常系・境界・競合・ライフタイムの回帰テストである。
 - `web/` はランディングページ用 Cloudflare Worker であり、デスクトップアプリのビルドおよび Velopack 配信とは独立して扱う。
 
 ## 実装規約
