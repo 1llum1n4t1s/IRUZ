@@ -113,7 +113,8 @@ foreach ($runtime in $Runtimes) {
 
     Write-Host "== publish: $runtime ==" -ForegroundColor Cyan
     Invoke-Native "dotnet publish ($runtime)" {
-        dotnet publish IRUZ.csproj -c Release -r $runtime -o $publishDir
+        # 非対話ホストでも Native AOT が Windows ターゲットとして判定できるよう明示する。
+        dotnet publish IRUZ.csproj -c Release -r $runtime -o $publishDir -p:OS=Windows_NT
     }
 
     foreach ($required in @('IRUZ.exe')) {

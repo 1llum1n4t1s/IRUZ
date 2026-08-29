@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- 全プロジェクト共通の唯一のバージョン定義。ここだけ更新すれば csproj は継承する (/vava もこの 1 行を更新)。 -->
-    <Version>1.0.18</Version>
+    <Version>1.0.19</Version>
     <!-- 製作者情報。Company は exe のプロパティに載るので屋号で統一する。 -->
     <Authors>Kagayoi</Authors>
     <Company>Kagayoi</Company>
