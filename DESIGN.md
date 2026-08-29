@@ -19,7 +19,7 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 | `TrayMenuController` | ViewModel の状態をネイティブメニューと tooltip へ投影 | 状態を所有せず、変更通知を購読して同期 |
 | `WindowRestoreCoordinator` | UI 準備前を含むウィンドウ復帰要求の保留と受け渡し | lock 配下で要求と登録の競合を直列化 |
 | `AcrylicFallbackHelper` | 透過効果無効時と RDP 時の不透明背景への切替 | Windows の表示設定を UI リソースへ変換 |
-| `tests/IRUZ.Tests` | ViewModel、トレイ、復帰、レジストリ、タイマー競合、表示判定の回帰検証 | Avalonia Headless と純粋化した判定関数を利用 |
+| `tests/IRUZ.Tests` | ViewModel、トレイ、復帰、レジストリ、タイマー競合、表示判定の回帰検証 | xUnit 4 / MTP v2 と Avalonia Headless を使い、UI 依存処理だけを専用 STA fixture へ渡す |
 | `web/` | `/` と `/index.html` のランディングページ配信 | その他のパスは加工せず R2 origin へ委譲 |
 
 ## 起動・更新・復帰フロー
@@ -91,6 +91,12 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 自己完結した win-x64 Native AOT として配布し、Velopack の成果物を Certum SimplySign で署名する。利用者側の .NET 導入を不要にできる一方、署名にはローカルの SimplySign 接続が必要なので CI ではなく `scripts/release-local.ps1` がリリースを担う。
 
 成果物は R2 の `iruz-updates` へ置き、固定 URL は upload 後に cache purge する。バージョン付き成果物は直近 2 バージョンを保持する。
+
+### MTP v2 と Headless UI スレッドの分離
+
+.NET 10 のテスト実行はルート `global.json` で Microsoft.Testing.Platform v2 に統一する。テスト runner の拡張 API と Avalonia の初期化を密結合させないため、`Avalonia.Headless.XUnit` は使用せず、コレクション共有の `AvaloniaDispatcherFixture` が Headless 環境を専用 STA スレッドで一度だけ初期化する。Dispatcher を必要とするテストだけをそのスレッドへ渡し、残りは通常の `Fact` / `Theory` として実行する。
+
+この分離により xUnit の major 更新から Headless 初期化を隔離できる一方、fixture の終了時には処理キューを閉じて UI スレッドを join し、テストプロセスへバックグラウンド処理を残さない必要がある。
 
 ### ランディング Worker と更新配信の同居
 

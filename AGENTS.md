@@ -24,6 +24,7 @@
 - スタートアップ登録は `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` の `IRUZ` 値を使う。Velopack 配下では更新で差し替わらないルートのスタブ exe を優先し、テストホストから登録パスを書き換えない。
 - Windows API、タイマー、イベント購読、トレイアイコンは終了時に解放する。`Dispose` は複数回呼ばれても安全な形を維持する。
 - アクリル背景は OS の透過無効時とリモートセッションで不透明背景へ切り替える。テーマ色は共有リソースへバインドしてライト／ダーク切替に追従させる。
+- .NET 10 のテスト runner はルート `global.json` で Microsoft.Testing.Platform に統一する。`Avalonia.Headless.XUnit` は使わず、Dispatcher を必要とするテストは `AvaloniaDispatcherFixture` の専用 STA スレッド上で実行する。
 - コード内コメントとテスト名は既存に合わせて日本語で記述する。警告とビルド時コードスタイル違反はエラーとして扱う。
 
 ## 依存関係とバージョン
