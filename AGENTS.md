@@ -39,7 +39,7 @@
 ```powershell
 dotnet restore IRUZ.slnx --locked-mode
 dotnet build IRUZ.slnx --configuration Release --no-restore
-dotnet test IRUZ.slnx --configuration Release --no-build --verbosity normal
+dotnet test --solution IRUZ.slnx --configuration Release --no-build --verbosity normal
 git diff --check
 ```
 

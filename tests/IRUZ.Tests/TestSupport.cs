@@ -14,7 +14,7 @@ namespace IRUZ.Tests;
 /// コンストラクタもその値を読むため、並列実行すると互いに干渉する。
 /// </summary>
 [CollectionDefinition(IruzTestCollection.Name, DisableParallelization = true)]
-public sealed class IruzTestCollection
+public sealed class IruzTestCollection : ICollectionFixture<AvaloniaDispatcherFixture>
 {
     /// <summary>コレクション名。</summary>
     public const string Name = "IRUZ";

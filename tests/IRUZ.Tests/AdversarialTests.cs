@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using IRUZ.Services;
 using IRUZ.ViewModels;
@@ -19,7 +18,7 @@ namespace IRUZ.Tests;
 /// 境界値 / 状態遷移 / 並行性 / 環境異常の4カテゴリを扱う。
 /// </summary>
 [Collection(IruzTestCollection.Name)]
-public class AdversarialTests
+public class AdversarialTests(AvaloniaDispatcherFixture avaloniaDispatcher)
 {
     #region 🗡️ 境界値・極端入力（Boundary Assault）
 
@@ -410,27 +409,30 @@ public class AdversarialTests
     /// OnJiggleElapsed の Post 内 IsRunning ガードにより、遅延ジョブが
     /// 停止中の表示を上書きしないことを確認する。
     /// </summary>
-    [AvaloniaFact]
+    [Fact]
     public void 停止後に投函済みジョブを実行してもStatusTextが上書きされないこと()
     {
-        using var vm = new MainWindowViewModel();
+        avaloniaDispatcher.Run(() =>
+        {
+            using var vm = new MainWindowViewModel();
 
-        // 1秒間隔で再スタート（間隔は StartJiggle 時に読まれる）
-        vm.SelectedIntervalSeconds = 1;
-        vm.ToggleCommand.Execute(null); // 停止
-        vm.ToggleCommand.Execute(null); // 1秒間隔で開始
-        Assert.Equal("ジグル中（1秒ごと）", vm.StatusText);
+            // 1秒間隔で再スタート（間隔は StartJiggle 時に読まれる）
+            vm.SelectedIntervalSeconds = 1;
+            vm.ToggleCommand.Execute(null); // 停止
+            vm.ToggleCommand.Execute(null); // 1秒間隔で開始
+            Assert.Equal("ジグル中（1秒ごと）", vm.StatusText);
 
-        // Elapsed を最低1回発火させる
-        Thread.Sleep(1200);
+            // Elapsed を最低1回発火させる
+            Thread.Sleep(1200);
 
-        vm.ToggleCommand.Execute(null); // 停止
-        Assert.Equal("停止中", vm.StatusText);
+            vm.ToggleCommand.Execute(null); // 停止
+            Assert.Equal("停止中", vm.StatusText);
 
-        // 停止前に投函済みのジョブを実行しても上書きされない
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("停止中", vm.StatusText);
-        Assert.False(vm.IsRunning);
+            // 停止前に投函済みのジョブを実行しても上書きされない
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("停止中", vm.StatusText);
+            Assert.False(vm.IsRunning);
+        });
     }
 
     /// <summary>

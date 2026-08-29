@@ -28,7 +28,7 @@ jobs:
         run: dotnet build IRUZ.slnx --configuration Release --no-restore
 
       - name: テスト実行
-        run: dotnet test IRUZ.slnx --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test --solution IRUZ.slnx --configuration Release --no-build --verbosity normal -- --report-xunit-trx --report-xunit-trx-filename test-results.trx --minimum-expected-tests 1
 
       - name: テスト結果をアップロード
         uses: actions/upload-artifact@v7
@@ -36,6 +36,7 @@ jobs:
         with:
           name: test-results-Release
           path: '**/TestResults/*.trx'
+          if-no-files-found: error
           retention-days: 1
 
       - name: ビルド成果物をアップロード
