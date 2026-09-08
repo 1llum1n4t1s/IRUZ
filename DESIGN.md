@@ -20,7 +20,7 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 | `WindowRestoreCoordinator` | UI 準備前を含むウィンドウ復帰要求の保留と受け渡し | lock 配下で要求と登録の競合を直列化 |
 | `AcrylicFallbackHelper` | 透過効果無効時と RDP 時の不透明背景への切替 | Windows の表示設定を UI リソースへ変換 |
 | `tests/IRUZ.Tests` | ViewModel、トレイ、復帰、レジストリ、タイマー競合、表示判定の回帰検証 | xUnit 4 / MTP v2 と Avalonia Headless を使い、UI 依存処理だけを専用 STA fixture へ渡す |
-| `web/` | `/` と `/index.html` のランディングページ配信 | その他のパスは加工せず R2 origin へ委譲 |
+| `../vps-web/lp/iruz/` | `/` と `/index.html` のランディングページ配信 | その他のパスは加工せず R2 origin へ委譲 |
 
 ## 起動・更新・復帰フロー
 
@@ -105,3 +105,9 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 ### アクリルの明示的フォールバック
 
 OS がアクリル適用を報告していても、Windows の透過無効時や RDP では不透明背景へ切り替える。共有テーマブラシへ binding することで、フォールバック中も OS のライト／ダーク設定へ追従する。
+
+## 製品ページの配信先
+
+製品ページの配信HTMLは `../vps-web/lp/iruz/`（編集元は `../vps-web/tools/lp/templates/`）、公開実体はVPSの `/srv/www/lp/iruz/`。
+Cloudflare側の中継設定は `../vps-web/deploy/lp-gateways/iruz/` に置く。
+公開URLと既存のR2・ライセンス通信を維持し、配信は `vps-web/deploy/deploy-lp.ps1` へ統一する。
