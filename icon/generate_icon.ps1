@@ -143,7 +143,7 @@ function Create-IconFromPng {
         $icoFileStream = $null
 
         if (Test-Path $OutputIcoPath) {
-            [System.IO.File]::Replace($tempIcoPath, $OutputIcoPath, $null)
+            [System.IO.File]::Replace($tempIcoPath, $OutputIcoPath, [System.Management.Automation.Language.NullString]::Value)
         } else {
             Move-Item -Path $tempIcoPath -Destination $OutputIcoPath -Force
         }
