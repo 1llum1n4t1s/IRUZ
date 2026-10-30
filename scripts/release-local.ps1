@@ -17,8 +17,40 @@
 [CmdletBinding()]
 param(
     [switch]$SkipUpload,
-    [string[]]$Runtimes = @('win-x64')
+    [string[]]$Runtimes = @('win-x64'),
+    [string]$WorkRoot
 )
+
+
+
+
+# 検証済みの作業対象だけを標準APIで削除する。
+function Remove-LocalWorkItem {
+    param([string[]]$LiteralPath, [string]$AllowedRoot, [switch]$IgnoreMissing, [switch]$AllowLeafJunction)
+    if ([string]::IsNullOrWhiteSpace($AllowedRoot) -or -not [IO.Path]::IsPathRooted($AllowedRoot)) { throw 'Cleanup root must be absolute.' }
+    $boundary = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    foreach ($target in $LiteralPath) {
+        if ([string]::IsNullOrWhiteSpace($target) -or -not [IO.Path]::IsPathRooted($target)) { throw 'Cleanup target must be absolute.' }
+        $resolved = [IO.Path]::GetFullPath($target)
+        if (-not $resolved.StartsWith($boundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup target is outside the allowed root.' }
+        $ancestor = $resolved
+        while ($ancestor) {
+            if (Test-Path -LiteralPath $ancestor) {
+                $item = Get-Item -LiteralPath $ancestor -Force -ErrorAction Stop
+                if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -and -not ($AllowLeafJunction -and $ancestor -eq $resolved -and $item.LinkType -eq 'Junction')) { throw 'Cleanup path contains a reparse point.' }
+            }
+            $ancestor = Split-Path $ancestor -Parent
+        }
+        if (-not (Test-Path -LiteralPath $resolved)) { if ($IgnoreMissing) { continue }; throw "Cleanup target is missing: $resolved" }
+        $item = Get-Item -LiteralPath $resolved -Force -ErrorAction Stop
+        $leafLink = [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+        if ($item.PSIsContainer -and -not $leafLink) {
+            if (@(Get-ChildItem -LiteralPath $resolved -Recurse -Force -ErrorAction Stop | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) { throw 'Cleanup directory contains a reparse point.' }
+        }
+        Remove-Item -LiteralPath $resolved -Recurse:($item.PSIsContainer -and -not $leafLink) -Force -ErrorAction Stop
+        if (Test-Path -LiteralPath $resolved) { throw "Cleanup target remains: $resolved" }
+    }
+}
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -29,11 +61,11 @@ $VpkVersion = (Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/vpk/ind
     Where-Object { $_ -notmatch '-' } | Select-Object -Last 1
 if (-not $VpkVersion) { throw 'vpk の最新安定版バージョンの取得に失敗しました (NuGet API)' }
 Write-Host "vpk 最新安定版: $VpkVersion"
-$WranglerVersion = '4.92.0'         # サプライチェーン対策でバージョン固定
+$WranglerVersion = '4.156.0'        # サプライチェーン対策でバージョン固定
 $Bucket = 'iruz-updates'
 $BaseUrl = 'https://iruz.kagayoi.com'
 $AccountId = '10901bfadbf1005164774a7350082985'
-$SecretsPath = 'C:\Users\IMT\dev\Secret\secrets.json'
+$SecretsPath = 'D:\Dev\Secret\secrets.json'
 $CertSubjectName = 'Open Source Developer Yuichiro Shinozaki'
 # /n (Subject 名) で選択: 証明書の年次更新で thumbprint が変わっても動く
 $SignParams = "/n `"$CertSubjectName`" /fd SHA256 /td SHA256 /tr http://time.certum.pl"
@@ -45,7 +77,7 @@ $RuntimeMatrix = @{
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
-$WorkDir = Join-Path $RepoRoot 'local-release'
+$WorkDir = if ($WorkRoot) { [IO.Path]::GetFullPath($WorkRoot) } else { Join-Path $RepoRoot 'local-release' }
 $ArtifactsDir = Join-Path $WorkDir 'artifacts'
 
 function Invoke-Native {
@@ -102,7 +134,7 @@ if (-not $SkipUpload) {
 # アイコン生成 (CI 版と同じく明示実行。csproj の BeforeBuild ターゲットでも走るが冪等)
 Invoke-Native 'アイコン生成' { pwsh -NoProfile -File (Join-Path 'icon' 'generate_icon.ps1') }
 
-if (Test-Path $WorkDir) { Remove-Item $WorkDir -Recurse -Force }
+if (Test-Path $WorkDir) { Remove-LocalWorkItem -LiteralPath $WorkDir -AllowedRoot $RepoRoot }
 New-Item -ItemType Directory -Path $ArtifactsDir -Force | Out-Null
 
 # ---- 1. ビルド + 署名付きパッケージング (RID ごと) ----
@@ -149,6 +181,8 @@ foreach ($exe in Get-ChildItem $ArtifactsDir -Filter '*.exe') {
     }
     Write-Host "  ✅ $($exe.Name): Valid ($($sig.SignerCertificate.Subject -replace ',.*$'))"
 }
+
+& (Join-Path $PSScriptRoot 'verify-release-artifacts.ps1') -ArtifactsDir $ArtifactsDir -WorkDir $WorkDir -Version $version -CertificateSubject $CertSubjectName
 
 if ($SkipUpload) {
     Write-Host "`n✅ -SkipUpload 指定のためここで終了。成果物: $ArtifactsDir" -ForegroundColor Green

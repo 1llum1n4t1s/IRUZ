@@ -4,9 +4,10 @@ Windows 用のマウスジグルツールです。定期的にマウス入力を
 
 キーダウン（キー入力）だと文字入力の邪魔になるため、邪魔にならないマウス移動で実装しています。
 
-## ダウンロード
+## ダウンロード・インストール
 
 [インストーラー](https://iruz.kagayoi.com/IRUZ-win-Setup.exe)をダウンロードして実行してください。
+Vector から ZIP を入手した場合は、展開して同梱の `IRUZ-win-Setup.exe` を実行してください。
 
 <img width="644" height="420" alt="image" src="https://github.com/user-attachments/assets/46aae56c-d513-47e6-86cd-10950b9b0d72" />
 
@@ -45,15 +46,20 @@ Windows 用のマウスジグルツールです。定期的にマウス入力を
 
 - Windows 11（25H2 / ビルド 26200 を想定。それ以前の OS では未検証）
 - 配布版は Native AOT でビルドされているため、.NET の別途インストールは不要です。
+- 対応アーキテクチャは x64 です。
 
-## 技術構成
+## アンインストール
 
-- **UI**: Avalonia 12
-- **デザイン**: Kagayoi 製アプリ共通の macOS Tahoe 風テーマ（`Resources/Themes.axaml`）。ライト/ダークは OS 設定に追従し、透過効果 OFF やリモートデスクトップではアクリルを不透明背景へ自動フォールバックします。
-- **アーキテクチャ**: MVVM（CommunityToolkit.Mvvm）
-- **入力シミュレート**: user32.dll の SendInput（MOUSEEVENTF_MOVE で相対移動 ±1px）
-- **配布・更新**: Velopack
+「スタートアップに登録する」を解除し、トレイメニューの「終了」で IRUZ を終了してください。その後、Windows の「設定」→「アプリ」→「インストールされているアプリ」から IRUZ をアンインストールできます。
+
+## 作者・お問い合わせ
+
+- 作者: ゆろち（Kagayoi）
+- 連絡先メールアドレス: [1llum1n4t1@duck.com](mailto:1llum1n4t1@duck.com)
+- 公式サイト: https://iruz.kagayoi.com/
+
+不具合のお問い合わせには、IRUZ のバージョン、Windows のバージョン、発生した現象と操作手順を添えてください。
 
 ## ライセンス
 
-LICENSE ファイルを参照してください。
+フリーソフトです。無料で利用でき、送金は不要です。MIT ライセンスの詳細は同梱の LICENSE ファイルを参照してください。
