@@ -4,7 +4,7 @@
 
 IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの離席判定をリセットする常駐型マウスジグルアプリである。ユーザー操作を邪魔しない相対マウス移動、一定時間後の自動解除、タスクトレイ操作、Windows ログイン時の起動、Velopack による自己更新を一つの Windows x64 アプリとして提供する。
 
-ランディングページは同じホスト名で配信するが、デスクトップアプリとは別の Cloudflare Worker である。開発・検証・リリースの具体的な作業規約は [AGENTS.md](AGENTS.md) を参照する。
+ランディングページは同じホスト名で配信するが、デスクトップアプリとは独立した Cloudflare Worker と Static Assets で構成する。開発・検証・リリースの具体的な作業規約は [AGENTS.md](AGENTS.md) を参照する。
 
 ## 主要コンポーネント
 
@@ -20,7 +20,7 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 | `WindowRestoreCoordinator` | UI 準備前を含むウィンドウ復帰要求の保留と受け渡し | lock 配下で要求と登録の競合を直列化 |
 | `AcrylicFallbackHelper` | 透過効果無効時と RDP 時の不透明背景への切替 | Windows の表示設定を UI リソースへ変換 |
 | `tests/IRUZ.Tests` | ViewModel、トレイ、復帰、レジストリ、タイマー競合、表示判定の回帰検証 | xUnit 4 / MTP v2 と Avalonia Headless を使い、UI 依存処理だけを専用 STA fixture へ渡す |
-| `../vps-web/lp/iruz/` | `/` と `/index.html` のランディングページ配信 | その他のパスは加工せず R2 origin へ委譲 |
+| `../vps-web/` の製品ページと中継 Worker | 案内ページと静的資産の配信 | [製品ページと更新配信の境界](#製品ページと更新配信の境界) を参照 |
 
 ## 起動・更新・復帰フロー
 
@@ -40,8 +40,8 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 2. Elapsed コールバックは、そのタイマーが現在の参照と一致し、入力が許可されている場合だけ `MouseJiggleHelper.Jiggle` を呼ぶ。
 3. `SendInput` は相対移動を `+1px`、続けて `-1px` 送る。カーソルを元の位置へ戻しながら OS の最終入力を更新する。
 4. 送信結果は UI スレッドへ post し、現在のタイマーと一致する場合だけ状態表示へ反映する。古いタイマーの遅延結果は破棄する。
-5. 自動解除を選ぶと、選択時点からの絶対時刻を `AutoStopAt` に保持し、1 秒周期で残り時間を表示する。スリープなどで tick が欠けても、現在時刻が期限以上なら解除する。
-6. 期限到達時はジグルを停止し、カウントダウンを破棄して、選択を「なし」へ戻す。再開時に以前の自動解除設定は引き継がない。
+5. ジグル中に自動解除を選ぶと、選択時点からの絶対時刻を `AutoStopAt` に保持し、1 秒周期で残り時間を表示する。停止中の選択は次の開始時に期限へ変換する。スリープなどで tick が欠けても、現在時刻が期限以上なら解除する。
+6. 期限到達時はジグルを停止し、カウントダウンを破棄して、選択を「なし」へ戻す。期限到達による停止後は、再開しても以前の自動解除設定を引き継がない。手動停止では選択を保持し、再開時から期限を設定し直す。
 
 メインウィンドウの binding と `TrayMenuController` は同じ ViewModel を参照するため、開始状態、間隔、自動解除、カウントダウン、スタートアップ登録は両 UI に同じ値で現れる。
 
@@ -98,16 +98,16 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 
 この分離により xUnit の major 更新から Headless 初期化を隔離できる一方、fixture の終了時には処理キューを閉じて UI スレッドを join し、テストプロセスへバックグラウンド処理を残さない必要がある。
 
-### ランディング Worker と更新配信の同居
+### 製品ページと更新配信の境界
 
-`iruz.kagayoi.com` の Worker route は `/` と `/index.html` だけを HTML 応答にし、その他を同一ホストの R2 origin へ委譲する。単一ホストで案内ページと Velopack 配信を両立できる一方、更新ファイルの Range、条件付き要求、Content-Type を壊さないよう Worker では加工しない。
+製品ページの生成先は `../vps-web/lp/iruz/`、編集元は `../vps-web/tools/lp/templates/`。Cloudflare の中継設定は `../vps-web/deploy/lp-gateways/iruz/` に置く。中継 Worker は `/`、`/index.html`、`/robots.txt`、`/sitemap.xml` と共通の `/common.css` を、`LP_CONTENT` service binding 経由で `vps-web-lp` の Static Assets から取得する。GET / HEAD に対応し、これらのパスへの他のメソッドは 405 を返す。
+
+`iruz.kagayoi.com` と互換用の `iruz.nephilim.jp` のその他のパスは `fetch(request)` で既存 origin へ委譲し、R2 の更新ファイルなどを引き続き配信する。単一ホストで案内ページと Velopack 配信を両立できる一方、更新ファイルの Range、条件付き要求、Content-Type を壊さないよう中継 Worker では加工しない。配信手順は [AGENTS.md](AGENTS.md#配布境界) を参照する。
 
 ### アクリルの明示的フォールバック
 
 OS がアクリル適用を報告していても、Windows の透過無効時や RDP では不透明背景へ切り替える。共有テーマブラシへ binding することで、フォールバック中も OS のライト／ダーク設定へ追従する。
 
-## 製品ページの配信先
+### アイコン生成時の置換
 
-製品ページの配信HTMLは `../vps-web/lp/iruz/`（編集元は `../vps-web/tools/lp/templates/`）、公開実体はVPSの `/srv/www/lp/iruz/`。
-Cloudflare側の中継設定は `../vps-web/deploy/lp-gateways/iruz/` に置く。
-公開URLと既存のR2・ライセンス通信を維持し、配信は `vps-web/deploy/deploy-lp.ps1` へ統一する。
+`IRUZ.csproj` の `GenerateIcon`、CI、ローカルリリースは `icon/generate_icon.ps1` を使い、`icon/app_icon.png` から `icon/app.ico` を生成する。ICO は一時ファイルへ書き込み、ストリームを閉じた後で既存ファイルを `File.Replace` により原子的に置換する。ビルドや表示側に書きかけの ICO を読ませないためである。バックアップパスには PowerShell の `NullString.Value` を渡し、.NET の文字列引数へ null を渡す。

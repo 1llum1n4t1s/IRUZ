@@ -10,7 +10,7 @@
 - `ViewModels/` は画面とトレイで共有する状態・コマンド・タイマー制御を持ち、`Services/` は Windows API、レジストリ、トレイ同期などの境界を持つ。
 - `Views/` と `Resources/` は表示とテーマに限定する。コードビハインドにはウィンドウ固有の表示制御だけを置く。
 - `tests/IRUZ.Tests/` は xUnit 4 / MTP v2 と Avalonia Headless による正常系・境界・競合・ライフタイムの回帰テストである。
-- `../vps-web/lp/iruz/` はVPS配信のランディングページと中継Worker であり、デスクトップアプリのビルドおよび Velopack 配信とは独立して扱う。
+- 製品ページと中継 Worker は隣接する `../vps-web/` で管理し、デスクトップアプリのビルドおよび Velopack 配信とは独立して扱う。配置と配信境界は [DESIGN.md](DESIGN.md#製品ページと更新配信の境界) を参照する。
 
 ## 実装規約
 
@@ -38,6 +38,7 @@
 デスクトップアプリの変更後はリポジトリルートで次を実行する。
 
 ```powershell
+pwsh -NoProfile -File icon/generate_icon.ps1
 dotnet restore IRUZ.slnx --locked-mode
 dotnet build IRUZ.slnx --configuration Release --no-restore
 dotnet test --solution IRUZ.slnx --configuration Release --no-build --verbosity normal
@@ -58,11 +59,5 @@ dotnet publish IRUZ.csproj --configuration Release --runtime win-x64 --no-restor
 
 - 署名付きリリースは `vava.config.json` から `scripts/release-local.ps1` を呼ぶ既存経路を使う。SimplySign Desktop の接続、コード署名証明書、既定の Cloudflare token が前提となる。
 - リリーススクリプトは win-x64 の Native AOT publish、Velopack pack、署名検証、`iruz-updates` への R2 upload、固定 URL の cache purge、配信確認、旧成果物整理を一続きで行う。
-- LP更新時は `../vps-web/deploy/deploy-lp.ps1` でVPSへ配信する。中継Workerは `/` と `/index.html` 以外をR2へ透過的に委譲する契約を維持する。
+- LP 更新時はリポジトリルートから `pwsh -NoProfile -File ../vps-web/deploy/deploy-lp.ps1 -Product iruz` を使う。中継 Worker も変更した場合は `-DeployGateways` を付ける。[製品ページと更新配信の境界](DESIGN.md#製品ページと更新配信の境界) を維持する。
 - `iruz.kagayoi.com` と互換用の `iruz.nephilim.jp` の Worker route、Velopack の `velopack.IRUZ` 識別子、更新 URL は既存利用者との互換性に関わるため維持する。
-
-## 製品ページの配信先
-
-製品ページの配信HTMLは `../vps-web/lp/iruz/`（編集元は `../vps-web/tools/lp/templates/`）、公開実体はVPSの `/srv/www/lp/iruz/`。
-Cloudflare側の中継設定は `../vps-web/deploy/lp-gateways/iruz/` に置く。
-公開URLと既存のR2・ライセンス通信を維持し、配信は `vps-web/deploy/deploy-lp.ps1` へ統一する。
