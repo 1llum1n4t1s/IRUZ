@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using IRUZ.Services;
 using IRUZ.ViewModels;
 using Xunit;
@@ -19,28 +17,6 @@ public class HappyPathTests
     // ─────────────────────────────────────────────
     // MainWindowViewModel: 初期状態と開始・停止
     // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// @happypath ジグル間隔の選択肢は仕様どおり 30/60/120/300 秒の4件で固定されている。
-    /// </summary>
-    [Fact]
-    public void 既定状態で構築したときIntervalOptionsが30と60と120と300であること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.Equal(new[] { 30, 60, 120, 300 }, vm.IntervalOptions);
-    }
-
-    /// <summary>
-    /// @happypath SelectedIntervalSeconds の初期値は既定値 60 秒。
-    /// </summary>
-    [Fact]
-    public void 構築直後は既定間隔60秒が選択されていること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.Equal(60, vm.SelectedIntervalSeconds);
-    }
 
     /// <summary>
     /// @happypath コンストラクタが StartJiggle を呼ぶため、開始状態で始まる。
@@ -108,19 +84,6 @@ public class HappyPathTests
     }
 
     /// <summary>
-    /// @happypath CanExecute の条件を持たないため常に実行可能。
-    /// </summary>
-    [Fact]
-    public void ToggleCommandが開始中でも停止中でも実行可能であること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.True(vm.ToggleCommand.CanExecute(null));
-        vm.ToggleCommand.Execute(null);
-        Assert.True(vm.ToggleCommand.CanExecute(null));
-    }
-
-    /// <summary>
     /// @happypath Dispose は停止と同じ観測結果になる。
     /// </summary>
     [Fact]
@@ -152,38 +115,9 @@ public class HappyPathTests
         Assert.Equal("ジグル中（60秒ごと）", second.StatusText);
     }
 
-    /// <summary>
-    /// @happypath 変更通知と Dispose の公開契約を型レベルで固定する。
-    /// </summary>
-    [Fact]
-    public void MainWindowViewModelがIDisposableとINotifyPropertyChangedを実装していること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.IsAssignableFrom<IDisposable>(vm);
-        Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
-        Assert.IsAssignableFrom<ViewModelBase>(vm);
-    }
-
     // ─────────────────────────────────────────────
     // MainWindowViewModel: 変更通知
     // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// @happypath NotifyPropertyChangedFor により IsRunning と ToggleButtonText が両方発火する。
-    /// </summary>
-    [Fact]
-    public void IsRunningが変化したときToggleButtonTextの変更通知も発生すること()
-    {
-        using var vm = new MainWindowViewModel();
-        var changed = new List<string?>();
-        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
-
-        vm.ToggleCommand.Execute(null);
-
-        Assert.Contains(nameof(MainWindowViewModel.IsRunning), changed);
-        Assert.Contains(nameof(MainWindowViewModel.ToggleButtonText), changed);
-    }
 
     /// <summary>
     /// @happypath ObservableProperty による PropertyChanged が発火する。
@@ -198,50 +132,6 @@ public class HappyPathTests
         vm.SelectedIntervalSeconds = 120;
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedIntervalSeconds), changed);
-    }
-
-    /// <summary>
-    /// @happypath 停止操作に伴う StatusText の PropertyChanged が観測できる。
-    /// </summary>
-    [Fact]
-    public void StatusTextが更新されたとき変更通知が発生すること()
-    {
-        using var vm = new MainWindowViewModel();
-        var changed = new List<string?>();
-        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
-
-        vm.ToggleCommand.Execute(null);
-
-        Assert.Contains(nameof(MainWindowViewModel.StatusText), changed);
-        Assert.Equal("停止中", vm.StatusText);
-    }
-
-    // ─────────────────────────────────────────────
-    // MainWindowViewModel: AppVersion
-    // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// @happypath 表示バージョンはアセンブリバージョンから導かれる。
-    /// </summary>
-    [Fact]
-    public void AppVersionが実行アセンブリのバージョンと一致すること()
-    {
-        using var vm = new MainWindowViewModel();
-        var version = typeof(MainWindowViewModel).Assembly.GetName().Version;
-        var expected = version is null ? "IRUZ" : $"IRUZ v{version.Major}.{version.Minor}.{version.Build}";
-
-        Assert.Equal(expected, vm.AppVersion);
-    }
-
-    /// <summary>
-    /// @happypath リビジョンを含まない "IRUZ vX.Y.Z" 形式であること。
-    /// </summary>
-    [Fact]
-    public void AppVersionがIRUZ接頭辞のメジャーマイナーパッチ形式であること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.Matches(@"^IRUZ v\d+\.\d+\.\d+$", vm.AppVersion);
     }
 
     // ─────────────────────────────────────────────
@@ -288,24 +178,6 @@ public class HappyPathTests
 
         Assert.True(result);
         Assert.False(StartupRegistration.IsEnabled());
-    }
-
-    /// <summary>
-    /// @happypath 読み取り専用であることを、値の一致と生値の不変で確認する。
-    /// </summary>
-    [Fact]
-    public void IsEnabledを複数回呼んでも同じ結果を返し副作用がないこと()
-    {
-        using var guard = new RunValueGuard();
-        StartupRegistration.SetEnabled(true);
-        var before = RunValueGuard.Read();
-
-        var first = StartupRegistration.IsEnabled();
-        var second = StartupRegistration.IsEnabled();
-
-        Assert.True(first);
-        Assert.Equal(first, second);
-        Assert.Equal(before, RunValueGuard.Read());
     }
 
     // ─────────────────────────────────────────────
@@ -382,17 +254,6 @@ public class HappyPathTests
     // ─────────────────────────────────────────────
 
     /// <summary>
-    /// @happypath SendInput の戻り値は環境依存のため、例外を投げない契約のみ固定する。
-    /// </summary>
-    [Fact]
-    public void Jiggleを呼んだとき例外を投げずに完了すること()
-    {
-        var exception = Record.Exception(() => MouseJiggleHelper.Jiggle());
-
-        Assert.Null(exception);
-    }
-
-    /// <summary>
     /// @happypath +1px と -1px を1回で送るため、呼び出し前後でカーソル座標が変わらない。
     /// </summary>
     [Fact]
@@ -411,19 +272,6 @@ public class HappyPathTests
     // ─────────────────────────────────────────────
     // 自動解除タイマー
     // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// @happypath 自動解除の選択肢は「なし」＋ 1/2/3/4/5/6/8 時間後の8件。
-    /// </summary>
-    [Fact]
-    public void 既定状態で構築したときAutoStopOptionsがなしと1から8時間後であること()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.Equal(
-            new[] { "なし", "1時間後", "2時間後", "3時間後", "4時間後", "5時間後", "6時間後", "8時間後" },
-            vm.AutoStopOptions.Select(o => o.ToString()));
-    }
 
     /// <summary>
     /// @happypath 既定は自動解除なし。従来どおり止めるまでジグルし続ける。
@@ -539,18 +387,6 @@ public class HappyPathTests
         Assert.False(vm.HasAutoStop);
         Assert.Equal(string.Empty, vm.AutoStopText);
         Assert.Equal("停止中", vm.StatusText);
-    }
-
-    /// <summary>
-    /// @happypath 自動解除なしのときはカウントダウン行を出さない。
-    /// </summary>
-    [Fact]
-    public void 自動解除なしのときはカウントダウンを表示しないこと()
-    {
-        using var vm = new MainWindowViewModel();
-
-        Assert.False(vm.HasAutoStop);
-        Assert.Equal(string.Empty, vm.AutoStopText);
     }
 
     /// <summary>

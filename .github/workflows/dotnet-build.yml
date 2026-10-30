@@ -14,10 +14,10 @@ jobs:
     if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
     steps:
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: .NET SDK をセットアップ
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
 
@@ -26,7 +26,7 @@ jobs:
         run: .\icon\generate_icon.ps1
 
       - name: 依存関係を復元
-        run: dotnet restore IRUZ.slnx
+        run: dotnet restore IRUZ.slnx --locked-mode
 
       - name: ビルド
         run: dotnet build IRUZ.slnx --configuration Release --no-restore
@@ -35,7 +35,7 @@ jobs:
         run: dotnet test --solution IRUZ.slnx --configuration Release --no-build --verbosity normal -- --report-xunit-trx --report-xunit-trx-filename test-results.trx --minimum-expected-tests 1
 
       - name: テスト結果をアップロード
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: test-results-Release
@@ -44,7 +44,7 @@ jobs:
           retention-days: 1
 
       - name: ビルド成果物をアップロード
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-artifacts-release
           path: |

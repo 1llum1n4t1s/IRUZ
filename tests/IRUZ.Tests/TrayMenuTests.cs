@@ -21,17 +21,15 @@ public class TrayMenuTests
     {
         var vm = new MainWindowViewModel();
         var probe = new TrayMenuProbe();
-        var menu = new TrayMenuController(vm, () => probe.ShowCount++, () => probe.ExitCount++, t => probe.ToolTip = t);
+        var menu = new TrayMenuController(vm, () => { }, () => { }, t => probe.ToolTip = t);
         return (vm, menu, probe);
     }
 
     /// <summary>
-    /// 呼び出し回数とツールチップを記録する観測用ホルダ。
+    /// ツールチップを記録する観測用ホルダ。
     /// </summary>
     internal sealed class TrayMenuProbe
     {
-        public int ShowCount { get; set; }
-        public int ExitCount { get; set; }
         public string? ToolTip { get; set; }
     }
 

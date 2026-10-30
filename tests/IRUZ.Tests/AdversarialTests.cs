@@ -24,64 +24,19 @@ public class AdversarialTests(AvaloniaDispatcherFixture avaloniaDispatcher)
 
     /// <summary>
     /// @adversarial @category=境界値 @severity=high
-    /// 1 は有効範囲の下限。丸めが発生せずそのまま採用されること。
-    /// </summary>
-    [Fact]
-    public void 間隔が下限1秒のとき丸められずそのまま採用されること()
-    {
-        Assert.Equal("ジグル中（1秒ごと）", TestHelpers.RestartWithInterval(1));
-    }
-
-    /// <summary>
-    /// @adversarial @category=境界値 @severity=high
-    /// 86400 は有効範囲の上限。Timer 生成が例外にならないこと。
-    /// </summary>
-    [Fact]
-    public void 間隔が上限86400秒のとき丸められずそのまま採用されること()
-    {
-        Assert.Equal("ジグル中（86400秒ごと）", TestHelpers.RestartWithInterval(86400));
-    }
-
-    /// <summary>
-    /// @adversarial @category=境界値 @severity=high
-    /// 回帰防止の要点。修正前は ArgumentException で落ちていた。
-    /// </summary>
-    [Fact]
-    public void 間隔が0のとき既定60秒へ丸められ例外にならないこと()
-    {
-        Assert.Equal("ジグル中（60秒ごと）", TestHelpers.RestartWithInterval(0));
-    }
-
-    /// <summary>
-    /// @adversarial @category=境界値 @severity=high
-    /// 上限の直後。範囲外なので既定値へ丸める。
-    /// </summary>
-    [Fact]
-    public void 間隔が86401秒のとき既定60秒へ丸められること()
-    {
-        Assert.Equal("ジグル中（60秒ごと）", TestHelpers.RestartWithInterval(86401));
-    }
-
-    /// <summary>
-    /// @adversarial @category=境界値 @severity=high
-    /// 下限の直前。範囲外なので既定値へ丸める。
-    /// </summary>
-    [Fact]
-    public void 間隔が負値のとき既定60秒へ丸められること()
-    {
-        Assert.Equal("ジグル中（60秒ごと）", TestHelpers.RestartWithInterval(-1));
-    }
-
-    /// <summary>
-    /// @adversarial @category=境界値 @severity=high
-    /// int 極値は *1000.0 で double 化されるため、丸め判定が先に効く必要がある。
+    /// 有効範囲の両端と範囲外・int 極値で、採用される間隔を確認する。
     /// </summary>
     [Theory]
-    [InlineData(int.MaxValue)]
-    [InlineData(int.MinValue)]
-    public void 間隔がint極値のとき既定60秒へ丸められオーバーフローしないこと(int seconds)
+    [InlineData(1, 1)]
+    [InlineData(86400, 86400)]
+    [InlineData(0, 60)]
+    [InlineData(86401, 60)]
+    [InlineData(-1, 60)]
+    [InlineData(int.MaxValue, 60)]
+    [InlineData(int.MinValue, 60)]
+    public void 間隔の境界値と範囲外の値が適切に採用されること(int seconds, int expectedSeconds)
     {
-        Assert.Equal("ジグル中（60秒ごと）", TestHelpers.RestartWithInterval(seconds));
+        Assert.Equal($"ジグル中（{expectedSeconds}秒ごと）", TestHelpers.RestartWithInterval(seconds));
     }
 
     /// <summary>
@@ -311,6 +266,7 @@ public class AdversarialTests(AvaloniaDispatcherFixture avaloniaDispatcher)
         Assert.Equal(1, raised.Count(n => n == nameof(MainWindowViewModel.IsRunning)));
         Assert.Equal(1, raised.Count(n => n == nameof(MainWindowViewModel.ToggleButtonText)));
         Assert.Contains(nameof(MainWindowViewModel.StatusText), raised);
+        Assert.Equal("停止中", vm.StatusText);
     }
 
     /// <summary>
