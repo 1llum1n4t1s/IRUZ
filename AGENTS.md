@@ -57,7 +57,16 @@ dotnet publish IRUZ.csproj --configuration Release --runtime win-x64 --no-restor
 
 ## 配布境界
 
-- 署名付きリリースは `vava.config.json` から `scripts/release-local.ps1` を呼ぶ既存経路を使う。SimplySign Desktop の接続、コード署名証明書、既定の Cloudflare token が前提となる。
+- 署名付きリリースは `scripts/release-local.ps1` を呼ぶ既存経路を使う。SimplySign Desktop の接続、コード署名証明書、既定の Cloudflare token が前提となる。
 - リリーススクリプトは win-x64 の Native AOT publish、Velopack pack、署名検証、`iruz-updates` への R2 upload、固定 URL の cache purge、配信確認、旧成果物整理を一続きで行う。
 - LP 更新時はリポジトリルートから `pwsh -NoProfile -File ../vps-web/deploy/deploy-lp.ps1 -Product iruz` を使う。中継 Worker も変更した場合は `-DeployGateways` を付ける。[製品ページと更新配信の境界](DESIGN.md#製品ページと更新配信の境界) を維持する。
 - `iruz.kagayoi.com` と互換用の `iruz.nephilim.jp` の Worker route、Velopack の `velopack.IRUZ` 識別子、更新 URL は既存利用者との互換性に関わるため維持する。
+
+### ローカルリリースの実行
+
+リポジトリルートで事前確認を行い、失敗時は「署名証明書が見つからないよ。SimplySign Desktop を起動してトークンでログインしてから /vava を再実行してね」。公開依頼時に成功を確認してから実行する。
+
+```powershell
+pwsh -NoProfile -Command 'if (-not (Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "CN=Open Source Developer Yuichiro Shinozaki*" -and $_.NotAfter -gt (Get-Date) })) { exit 1 }'
+if ($LASTEXITCODE -eq 0) { pwsh -NoProfile -File scripts/release-local.ps1 } else { throw '署名証明書が見つからないよ。SimplySign Desktop を起動してトークンでログインしてから /vava を再実行してね' }
+```
