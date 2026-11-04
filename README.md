@@ -69,3 +69,7 @@ Vector から ZIP を入手した場合は、展開して同梱の `IRUZ-win-Set
 フリーソフトです。無料で利用でき、送金は不要です。MIT ライセンスの詳細は [LICENSE](LICENSE) を参照してください。
 
 開発・検証の手順は [AGENTS.md](AGENTS.md)、内部構造は [DESIGN.md](DESIGN.md) を参照してください。
+
+## R2 配布
+
+R2 への配布は PowerShell 7.2 以上と同梱 `scripts/R2Distribution.Common.ps1` を使用します。Node.js・pnpm・Wrangler は不要です。既存の Cloudflare API token を使用し、固定 URL は再検証、不変の版付き成果物は1年間キャッシュします。

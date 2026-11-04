@@ -25,6 +25,7 @@
   <!-- テストプロジェクトはルート直下の既定 glob に含まれるため明示的に除外する。 -->
   <ItemGroup>
     <Compile Remove="tests\**" />
+    <Compile Remove="scripts\R2Transfer.Core.cs" />
     <AvaloniaXaml Remove="tests\**" />
     <AvaloniaResource Remove="tests\**" />
     <None Remove="tests\**" />
