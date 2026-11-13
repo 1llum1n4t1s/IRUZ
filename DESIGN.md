@@ -86,9 +86,9 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 
 更新処理を Avalonia 起動前の STA スレッド上で完了させる。起動前に最新版へ揃えられる一方、ネットワーク待ちが起動時間へ影響するため、確認とダウンロードに個別の上限を設けている。
 
-### Native AOT とローカル署名リリース
+### Native AOT と CI 署名リリース
 
-自己完結した win-x64 Native AOT として配布し、Velopack の成果物を Certum SimplySign で署名する。利用者側の .NET 導入を不要にできる一方、署名にはローカルの SimplySign 接続が必要なので CI ではなく `scripts/release-local.ps1` がリリースを担う。
+自己完結した win-x64 Native AOT として配布し、Velopack の成果物を Certum SimplySign のクラウド鍵で署名する。利用者側の .NET 導入を不要にできる。署名は Sigilune が Certum のクラウドへ直接接続して signtool `/dlib` で行うため SimplySign Desktop を要さず、手動起動の GitHub Actions（`release.yml`、Environment `release`）が `scripts/release-local.ps1` を実行してリリースを担う。TOTP 登録情報を Secrets に置くため、それを読むのはこのワークフローだけとし、ランナーのセッションは終了時にログアウトする。ローカル実行は検証・再開に残す。
 
 成果物は R2 の `iruz-updates` へ置き、固定 URL は upload 後に cache purge する。バージョン付き成果物は直近 2 バージョンを保持する。
 

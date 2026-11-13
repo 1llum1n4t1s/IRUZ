@@ -57,16 +57,17 @@ dotnet publish IRUZ.csproj --configuration Release --runtime win-x64 --no-restor
 
 ## 配布境界
 
-- 署名付きリリースは `scripts/release-local.ps1` を呼ぶ既存経路を使う。SimplySign Desktop の接続、コード署名証明書、既定の Cloudflare token が前提となる。
+- 署名付きリリースは GitHub Actions の `.github/workflows/release.yml`（手動起動・Environment `release`）で行い、ワークフローが `scripts/release-local.ps1` を実行する。/vava で版を上げて push した後、`gh workflow run release.yml --ref <ブランチ>` で起動し `gh run watch` で完了を確認する（`-f skip_upload=true` は配信せず署名済み成果物だけを Actions に残す）。署名は [Sigilune](https://github.com/1llum1n4t1s/Sigilune)（Certum SimplySign のクラウド鍵を signtool `/dlib` で使う CLI。SimplySign Desktop・手入力コード不要）が `scripts/Sigilune.Common.ps1` 経由で行い、Velopack には `--signTemplate "<sigilune> sign {{file}}"` を渡す。CI の資格情報は Environment `release` の Secrets（`SIGILUNE_EMAIL` / `SIGILUNE_TOTP_URI` / `CLOUDFLARE_API_TOKEN`）だけに置き、終了時に `sigilune logout` する。ローカル実行は `sigilune setup` 済みの資格情報と、環境変数が無い場合だけ既定の Cloudflare token を使い、検証・再開に使う。
 - リリーススクリプトは win-x64 の Native AOT publish、Velopack pack、署名検証、`iruz-updates` への R2 upload、固定 URL の cache purge、配信確認、旧成果物整理を一続きで行う。
 - LP 更新時はリポジトリルートから `pwsh -NoProfile -File ../vps-web/deploy/deploy-lp.ps1 -Product iruz` を使う。中継 Worker も変更した場合は `-DeployGateways` を付ける。[製品ページと更新配信の境界](DESIGN.md#製品ページと更新配信の境界) を維持する。
 - `iruz.kagayoi.com` と互換用の `iruz.nephilim.jp` の Worker route、Velopack の `velopack.IRUZ` 識別子、更新 URL は既存利用者との互換性に関わるため維持する。
 
 ### ローカルリリースの実行
 
-リポジトリルートで事前確認を行い、失敗時は「署名証明書が見つからないよ。SimplySign Desktop を起動してトークンでログインしてから /vava を再実行してね」。公開依頼時に成功を確認してから実行する。
+通常は上記の `release.yml` を使う。ローカルで実行する場合は、リポジトリルートで Sigilune のクラウドログインを事前確認し、成功した場合だけ実行する（`release-local.ps1` もビルド前に同じ確認を行う）。失敗時は `sigilune status` で登録を確認するよう案内し、ログインを自動再試行せず、署名を省略して続行しない。
 
 ```powershell
-pwsh -NoProfile -Command 'if (-not (Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "CN=Open Source Developer Yuichiro Shinozaki*" -and $_.NotAfter -gt (Get-Date) })) { exit 1 }'
-if ($LASTEXITCODE -eq 0) { pwsh -NoProfile -File scripts/release-local.ps1 } else { throw '署名証明書が見つからないよ。SimplySign Desktop を起動してトークンでログインしてから /vava を再実行してね' }
+$sigilune = if ($env:SIGILUNE_EXE) { $env:SIGILUNE_EXE } else { Join-Path $env:USERPROFILE '.local\Sigilune\bin\sigilune.exe' }
+& $sigilune login
+if ($LASTEXITCODE -eq 0) { pwsh -NoProfile -File scripts/release-local.ps1 } else { throw 'Sigilune でクラウドにログインできなかったよ。sigilune status で登録を確認してから /vava を再実行してね' }
 ```
