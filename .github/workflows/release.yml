@@ -48,7 +48,17 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           # global.json は SDK を固定していないため、dotnet-build.yml と同じ SDK 系列を指定する。
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
+
+      # 署名・配信の前に同じコミットのテストを通し、壊れた版を R2 へ出さない。
+      - name: アイコン生成
+        run: .\icon\generate_icon.ps1
+
+      - name: 依存関係を復元
+        run: dotnet restore IRUZ.slnx --locked-mode
+
+      - name: 配信前テスト
+        run: dotnet test --solution IRUZ.slnx --configuration Release --verbosity normal -- --minimum-expected-tests 1
 
       - name: Sigilune を導入
         uses: 1llum1n4t1s/Sigilune@05006dcad019e5e863a08985b9208d72004f1b5f # v1.1.3

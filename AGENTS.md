@@ -4,7 +4,7 @@
 
 ## 技術構成と配置
 
-- 対象は Windows x64。製品は .NET 10、Avalonia 12、CommunityToolkit.Mvvm、Velopack を使う Native AOT デスクトップアプリである。
+- 対象は Windows x64。製品は .NET 11、Avalonia 12、CommunityToolkit.Mvvm、Velopack を使う Native AOT デスクトップアプリである。
 - `Program.cs` は Velopack 初期化、単一インスタンス制御、自動更新、復帰通知を担当する。
 - `App.axaml.cs` はウィンドウとトレイのライフタイム、明示終了、リソース解放を担当する。
 - `ViewModels/` は画面とトレイで共有する状態・コマンド・タイマー制御を持ち、`Services/` は Windows API、レジストリ、トレイ同期などの境界を持つ。
@@ -24,7 +24,7 @@
 - スタートアップ登録は `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` の `IRUZ` 値を使う。Velopack 配下では更新で差し替わらないルートのスタブ exe を優先し、テストホストから登録パスを書き換えない。
 - Windows API、タイマー、イベント購読、トレイアイコンは終了時に解放する。`Dispose` は複数回呼ばれても安全な形を維持する。
 - アクリル背景は OS の透過無効時とリモートセッションで不透明背景へ切り替える。テーマ色は共有リソースへバインドしてライト／ダーク切替に追従させる。
-- .NET 10 のテスト runner はルート `global.json` で Microsoft.Testing.Platform に統一する。`Avalonia.Headless.XUnit` は使わず、Dispatcher を必要とするテストは `AvaloniaDispatcherFixture` の専用 STA スレッド上で実行する。
+- .NET 11 のテスト runner はルート `global.json` で Microsoft.Testing.Platform に統一する。`Avalonia.Headless.XUnit` は使わず、Dispatcher を必要とするテストは `AvaloniaDispatcherFixture` の専用 STA スレッド上で実行する。
 - コード内コメントとテスト名は既存に合わせて日本語で記述する。警告とビルド時コードスタイル違反はエラーとして扱う。
 
 ## 依存関係とバージョン
@@ -57,8 +57,8 @@ dotnet publish IRUZ.csproj --configuration Release --runtime win-x64 --no-restor
 
 ## 配布境界
 
-- 署名付きリリースは GitHub Actions の `.github/workflows/release.yml`（手動起動・Environment `release`）で行い、ワークフローが `scripts/release-local.ps1` を実行する。/vava で版を上げて push した後、`gh workflow run release.yml --ref <ブランチ>` で起動し `gh run watch` で完了を確認する（`-f skip_upload=true` は配信せず署名済み成果物だけを Actions に残す）。署名は [Sigilune](https://github.com/1llum1n4t1s/Sigilune)（Certum SimplySign のクラウド鍵を signtool `/dlib` で使う CLI。SimplySign Desktop・手入力コード不要）が `scripts/Sigilune.Common.ps1` 経由で行い、Velopack には `--signTemplate "<sigilune> sign {{file}}"` を渡す。CI の資格情報は Environment `release` の Secrets（`SIGILUNE_EMAIL` / `SIGILUNE_TOTP_URI` / `CLOUDFLARE_API_TOKEN`）だけに置き、終了時に `sigilune logout` する。ローカル実行は `sigilune setup` 済みの資格情報と、環境変数が無い場合だけ既定の Cloudflare token を使い、検証・再開に使う。
-- リリーススクリプトは win-x64 の Native AOT publish、Velopack pack、署名検証、`iruz-updates` への R2 upload、固定 URL の cache purge、配信確認、旧成果物整理を一続きで行う。
+- 署名付きリリースは GitHub Actions の `.github/workflows/release.yml`（`release/**` への push で起動、同じブランチの再実行だけ手動起動・Environment `release`）で行い、ワークフローが配信前テストの後に `scripts/release-local.ps1` を実行する。/vava が `release/<version>` を push すると始まるので、`vigilia watch HEAD` で完了を確認する（再実行は `gh workflow run release.yml --ref <ブランチ>`。REST枠を使わずGraphQLで取得し、同じ対象は全セッションでキャッシュ共有されるため複数セッションが同時に見てよい。`-f skip_upload=true` は配信せず署名済み成果物だけを Actions に残す）。署名は [Sigilune](https://github.com/1llum1n4t1s/Sigilune)（Certum SimplySign のクラウド鍵を signtool `/dlib` で使う CLI。SimplySign Desktop・手入力コード不要）が `scripts/Sigilune.Common.ps1` 経由で行い、Velopack には `--signTemplate "<sigilune> sign {{file}}"` を渡す。CI の資格情報は Environment `release` の Secrets（`SIGILUNE_EMAIL` / `SIGILUNE_TOTP_URI` / `CLOUDFLARE_API_TOKEN`）だけに置き、終了時に `sigilune logout` する。ローカル実行は `sigilune setup` 済みの資格情報と、環境変数が無い場合だけ既定の Cloudflare token を使い、検証・再開に使う。
+- リリーススクリプトは win-x64 の Native AOT publish、Velopack pack、署名検証、`iruz-updates` への R2 upload、固定 URL の cache purge、旧成果物整理を一続きで行う。
 - LP 更新時はリポジトリルートから `pwsh -NoProfile -File ../vps-web/deploy/deploy-lp.ps1 -Product iruz` を使う。中継 Worker も変更した場合は `-DeployGateways` を付ける。[製品ページと更新配信の境界](DESIGN.md#製品ページと更新配信の境界) を維持する。
 - `iruz.kagayoi.com` と互換用の `iruz.nephilim.jp` の Worker route、Velopack の `velopack.IRUZ` 識別子、更新 URL は既存利用者との互換性に関わるため維持する。
 

@@ -11,11 +11,17 @@ name: .NET ビルド
 on:
   workflow_dispatch:
   pull_request:
+  # main へ直接 push した変更も検証する(release/** はジョブ側の if で除外し、配信は release.yml が担う)。
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     name: .NET ビルド
     runs-on: windows-latest
+    # 復元・ビルド・テストの想定は 10 分前後。ハング時にランナーを占有し続けないよう上限を付ける。
+    timeout-minutes: 30
     if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
     steps:
       - name: リポジトリをチェックアウト
@@ -28,7 +34,7 @@ jobs:
       - name: .NET SDK をセットアップ
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: アイコン生成
         shell: pwsh
