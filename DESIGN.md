@@ -94,7 +94,7 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 
 ### MTP v2 と Headless UI スレッドの分離
 
-.NET 10 のテスト実行はルート `global.json` で Microsoft.Testing.Platform v2 に統一する。テスト runner の拡張 API と Avalonia の初期化を密結合させないため、`Avalonia.Headless.XUnit` は使用せず、コレクション共有の `AvaloniaDispatcherFixture` が Headless 環境を専用 STA スレッドで一度だけ初期化する。Dispatcher を必要とするテストだけをそのスレッドへ渡し、残りは通常の `Fact` / `Theory` として実行する。
+.NET 11 のテスト実行はルート `global.json` で Microsoft.Testing.Platform v2 に統一する。テスト runner の拡張 API と Avalonia の初期化を密結合させないため、`Avalonia.Headless.XUnit` は使用せず、コレクション共有の `AvaloniaDispatcherFixture` が Headless 環境を専用 STA スレッドで一度だけ初期化する。Dispatcher を必要とするテストだけをそのスレッドへ渡し、残りは通常の `Fact` / `Theory` として実行する。
 
 この分離により xUnit の major 更新から Headless 初期化を隔離できる一方、fixture の終了時には処理キューを閉じて UI スレッドを join し、テストプロセスへバックグラウンド処理を残さない必要がある。
 

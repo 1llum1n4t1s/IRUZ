@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!-- バージョンは Directory.Build.props の <Version> で一元管理 (継承)。 -->
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>icon\app.ico</ApplicationIcon>
