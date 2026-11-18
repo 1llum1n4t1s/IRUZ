@@ -88,7 +88,7 @@ IRUZ は Windows の最終入力時刻を定期的に更新し、Teams などの
 
 ### Native AOT と CI 署名リリース
 
-自己完結した win-x64 Native AOT として配布し、Velopack の成果物を Certum SimplySign のクラウド鍵で署名する。利用者側の .NET 導入を不要にできる。署名は Sigilune が Certum のクラウドへ直接接続して signtool `/dlib` で行うため SimplySign Desktop を要さず、手動起動の GitHub Actions（`release.yml`、Environment `release`）が `scripts/release-local.ps1` を実行してリリースを担う。TOTP 登録情報を Secrets に置くため、それを読むのはこのワークフローだけとし、ランナーのセッションは終了時にログアウトする。ローカル実行は検証・再開に残す。
+自己完結した win-x64 Native AOT として配布し、Velopack の成果物を Certum SimplySign のクラウド鍵で署名する。利用者側の .NET 導入を不要にできる。署名は Sigilune が Certum のクラウドへ直接接続して signtool `/dlib` で行うため SimplySign Desktop を要さず、版タグ `v<x.y.z>` の push で起動する GitHub Actions（`release.yml`、Environment `release`）が `scripts/release-local.ps1` を実行してリリースを担う。TOTP 登録情報を Secrets に置くため、それを読むのはこのワークフローだけとし、ランナーのセッションは終了時にログアウトする。ローカル実行は検証・再開に残す。
 
 成果物は R2 の `iruz-updates` へ置き、固定 URL は upload 後に cache purge する。バージョン付き成果物は直近 2 バージョンを保持する。
 
